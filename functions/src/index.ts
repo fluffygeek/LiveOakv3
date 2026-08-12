@@ -19,6 +19,11 @@ import {
 } from "./access/errors.js";
 import { FirestoreUserRepository } from "./access/firestoreUserRepository.js";
 import { parseEmail, parseRoles } from "./access/validation.js";
+import { NotConfiguredAddressVerifier } from "./jobRecords/notConfiguredAddressVerifier.js";
+import { FirestoreAuditLogRepository } from "./jobRecords/firestoreAuditLogRepository.js";
+import { FirestoreJobRecordRepository } from "./jobRecords/firestoreJobRecordRepository.js";
+import { createJobRecord as createJobRecordService } from "./jobRecords/jobRecordService.js";
+import { parseCreateJobRecordInput } from "./jobRecords/validation.js";
 
 initializeApp();
 
@@ -28,6 +33,15 @@ const ALLOWED_WORKSPACE_DOMAIN =
 
 function repository(): FirestoreUserRepository {
   return new FirestoreUserRepository(getFirestore());
+}
+
+function jobRecordDeps() {
+  const db = getFirestore();
+  return {
+    jobRecordRepo: new FirestoreJobRecordRepository(db),
+    auditLogRepo: new FirestoreAuditLogRepository(db),
+    addressVerifier: new NotConfiguredAddressVerifier(),
+  };
 }
 
 function toHttpsError(error: unknown): HttpsError {
@@ -112,6 +126,16 @@ export const listUsers = onCall(async (request) => {
   try {
     const caller = await requireCaller(request.auth);
     return await listUsersService(repository(), caller.roles);
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const createJobRecord = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    const input = parseCreateJobRecordInput(request.data);
+    return await createJobRecordService(caller.email, caller.roles, input, jobRecordDeps());
   } catch (error) {
     throw toHttpsError(error);
   }
