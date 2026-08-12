@@ -44,6 +44,20 @@ export class FirestoreJobRecordRepository implements JobRecordRepository {
     return snapshot.docs.map((doc) => fromDocument(doc.data()));
   }
 
+  async listByTechnicianAndWindow(
+    technicianEmail: string,
+    startIso: string,
+    endIso: string,
+  ): Promise<JobRecord[]> {
+    const snapshot = await this.db
+      .collection(COLLECTION)
+      .where("technicianEmail", "==", technicianEmail)
+      .where("submittedAt", ">=", startIso)
+      .where("submittedAt", "<", endIso)
+      .get();
+    return snapshot.docs.map((doc) => fromDocument(doc.data()));
+  }
+
   async createWithDuplicateLinking(
     normalizedAddress: string,
     sinceIso: string,

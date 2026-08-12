@@ -15,6 +15,14 @@
         { "fieldPath": "recordId", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "jobRecords",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "technicianEmail", "order": "ASCENDING" },
+        { "fieldPath": "submittedAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -103,6 +103,15 @@ export function parseSetFlagInput(data: unknown): { recordId: string; value: boo
   };
 }
 
+/** weekOffset defaults to 0 (the current week) when absent. */
+export function parseWeeklyListInput(data: unknown): { weekOffset: number } {
+  const record = asRecord(data);
+  if (record.weekOffset === undefined) {
+    return { weekOffset: 0 };
+  }
+  return { weekOffset: parseWholeNumber(record.weekOffset, "weekOffset") };
+}
+
 export function parseUnlinkDuplicateInput(data: unknown): {
   recordId: string;
   otherRecordId: string;

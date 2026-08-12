@@ -23,6 +23,19 @@ export class InMemoryJobRecordRepository implements JobRecordRepository {
     return [...this.recordsById.values()];
   }
 
+  async listByTechnicianAndWindow(
+    technicianEmail: string,
+    startIso: string,
+    endIso: string,
+  ): Promise<JobRecord[]> {
+    return [...this.recordsById.values()].filter(
+      (record) =>
+        record.technicianEmail === technicianEmail &&
+        record.submittedAt >= startIso &&
+        record.submittedAt < endIso,
+    );
+  }
+
   async createWithDuplicateLinking(
     normalizedAddress: string,
     sinceIso: string,

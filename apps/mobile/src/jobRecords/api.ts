@@ -14,3 +14,19 @@ export async function submitJobRecord(
   const result = await createJobRecordFn(submission);
   return result.data;
 }
+
+export interface WeeklyList {
+  startIso: string;
+  endIso: string;
+  records: JobRecord[];
+}
+
+const listMyWeeklyJobRecordsFn = httpsCallable<{ weekOffset: number }, WeeklyList>(
+  functions,
+  "listMyWeeklyJobRecords",
+);
+
+export async function getMyWeeklyJobRecords(weekOffset: number): Promise<WeeklyList> {
+  const result = await listMyWeeklyJobRecordsFn({ weekOffset });
+  return result.data;
+}

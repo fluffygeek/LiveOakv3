@@ -37,6 +37,7 @@ import {
   setPicturesDownloaded as setPicturesDownloadedService,
   unlinkDuplicate as unlinkDuplicateService,
 } from "./jobRecords/jobRecordReviewService.js";
+import { listMyWeeklyJobRecords as listMyWeeklyJobRecordsService } from "./jobRecords/weeklyListService.js";
 import {
   parseCreateJobRecordInput,
   parseEditJobRecordPatch,
@@ -44,6 +45,7 @@ import {
   parseSetDiscrepancyInput,
   parseSetFlagInput,
   parseUnlinkDuplicateInput,
+  parseWeeklyListInput,
 } from "./jobRecords/validation.js";
 
 initializeApp();
@@ -286,6 +288,21 @@ export const unlinkDuplicate = onCall(async (request) => {
       caller.roles,
       recordId,
       otherRecordId,
+      jobRecordDeps(),
+    );
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const listMyWeeklyJobRecords = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    const { weekOffset } = parseWeeklyListInput(request.data);
+    return await listMyWeeklyJobRecordsService(
+      caller.email,
+      caller.roles,
+      weekOffset,
       jobRecordDeps(),
     );
   } catch (error) {
