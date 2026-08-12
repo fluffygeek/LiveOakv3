@@ -11,10 +11,13 @@ import {
 } from "./access/accessService.js";
 import {
   AccessDeniedError,
+  DiscrepancyActiveError,
   ForbiddenError,
   InvalidArgumentError,
+  JobRecordNotFoundError,
   LastAdministratorError,
   NotAllowlistedError,
+  NotDuplicateError,
   UserNotFoundError,
 } from "./access/errors.js";
 import { FirestoreUserRepository } from "./access/firestoreUserRepository.js";
@@ -23,7 +26,25 @@ import { NotConfiguredAddressVerifier } from "./jobRecords/notConfiguredAddressV
 import { FirestoreAuditLogRepository } from "./jobRecords/firestoreAuditLogRepository.js";
 import { FirestoreJobRecordRepository } from "./jobRecords/firestoreJobRecordRepository.js";
 import { createJobRecord as createJobRecordService } from "./jobRecords/jobRecordService.js";
-import { parseCreateJobRecordInput } from "./jobRecords/validation.js";
+import {
+  editJobRecord as editJobRecordService,
+  getJobRecord as getJobRecordService,
+  listJobRecordAuditLog as listJobRecordAuditLogService,
+  listJobRecords as listJobRecordsService,
+  overrideDuplicatePrimary as overrideDuplicatePrimaryService,
+  setClosed as setClosedService,
+  setDiscrepancy as setDiscrepancyService,
+  setPicturesDownloaded as setPicturesDownloadedService,
+  unlinkDuplicate as unlinkDuplicateService,
+} from "./jobRecords/jobRecordReviewService.js";
+import {
+  parseCreateJobRecordInput,
+  parseEditJobRecordPatch,
+  parseRecordId,
+  parseSetDiscrepancyInput,
+  parseSetFlagInput,
+  parseUnlinkDuplicateInput,
+} from "./jobRecords/validation.js";
 
 initializeApp();
 
@@ -59,6 +80,12 @@ function toHttpsError(error: unknown): HttpsError {
   }
   if (error instanceof InvalidArgumentError) {
     return new HttpsError("invalid-argument", error.message);
+  }
+  if (error instanceof JobRecordNotFoundError) {
+    return new HttpsError("not-found", error.message);
+  }
+  if (error instanceof DiscrepancyActiveError || error instanceof NotDuplicateError) {
+    return new HttpsError("failed-precondition", error.message);
   }
   return new HttpsError("internal", "Unexpected error");
 }
@@ -136,6 +163,131 @@ export const createJobRecord = onCall(async (request) => {
     const caller = await requireCaller(request.auth);
     const input = parseCreateJobRecordInput(request.data);
     return await createJobRecordService(caller.email, caller.roles, input, jobRecordDeps());
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const listJobRecords = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    return await listJobRecordsService(caller.roles, jobRecordDeps());
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const getJobRecord = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    const recordId = parseRecordId(request.data);
+    return await getJobRecordService(caller.roles, recordId, jobRecordDeps());
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const listJobRecordAuditLog = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    const recordId = parseRecordId(request.data);
+    return await listJobRecordAuditLogService(caller.roles, recordId, jobRecordDeps());
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const editJobRecord = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    const { recordId, patch } = parseEditJobRecordPatch(request.data);
+    return await editJobRecordService(
+      caller.email,
+      caller.roles,
+      recordId,
+      patch,
+      jobRecordDeps(),
+    );
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const setDiscrepancy = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    const { recordId, active, reason } = parseSetDiscrepancyInput(request.data);
+    return await setDiscrepancyService(
+      caller.email,
+      caller.roles,
+      recordId,
+      active,
+      reason,
+      jobRecordDeps(),
+    );
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const setPicturesDownloaded = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    const { recordId, value } = parseSetFlagInput(request.data);
+    return await setPicturesDownloadedService(
+      caller.email,
+      caller.roles,
+      recordId,
+      value,
+      jobRecordDeps(),
+    );
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const setClosed = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    const { recordId, value } = parseSetFlagInput(request.data);
+    return await setClosedService(
+      caller.email,
+      caller.roles,
+      recordId,
+      value,
+      jobRecordDeps(),
+    );
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const overrideDuplicatePrimary = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    const recordId = parseRecordId(request.data);
+    return await overrideDuplicatePrimaryService(
+      caller.email,
+      caller.roles,
+      recordId,
+      jobRecordDeps(),
+    );
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const unlinkDuplicate = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    const { recordId, otherRecordId } = parseUnlinkDuplicateInput(request.data);
+    return await unlinkDuplicateService(
+      caller.email,
+      caller.roles,
+      recordId,
+      otherRecordId,
+      jobRecordDeps(),
+    );
   } catch (error) {
     throw toHttpsError(error);
   }

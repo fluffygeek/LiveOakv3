@@ -26,9 +26,22 @@ export class FirestoreJobRecordRepository implements JobRecordRepository {
     await this.db.collection(COLLECTION).doc(record.recordId).set(toDocument(record));
   }
 
+  async updateMany(records: JobRecord[]): Promise<void> {
+    const batch = this.db.batch();
+    for (const record of records) {
+      batch.set(this.db.collection(COLLECTION).doc(record.recordId), toDocument(record));
+    }
+    await batch.commit();
+  }
+
   async getById(recordId: string): Promise<JobRecord | null> {
     const snapshot = await this.db.collection(COLLECTION).doc(recordId).get();
     return snapshot.exists ? fromDocument(snapshot.data() as Record<string, unknown>) : null;
+  }
+
+  async list(): Promise<JobRecord[]> {
+    const snapshot = await this.db.collection(COLLECTION).get();
+    return snapshot.docs.map((doc) => fromDocument(doc.data()));
   }
 
   async createWithDuplicateLinking(

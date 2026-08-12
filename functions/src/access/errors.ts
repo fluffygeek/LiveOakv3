@@ -4,3 +4,6 @@ export class ForbiddenError extends Error {}
 export class UserNotFoundError extends Error {}
 export class LastAdministratorError extends Error {}
 export class InvalidArgumentError extends Error {}
+export class JobRecordNotFoundError extends Error {}
+export class DiscrepancyActiveError extends Error {}
+export class NotDuplicateError extends Error {}

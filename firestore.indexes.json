@@ -7,6 +7,14 @@
         { "fieldPath": "normalizedAddressKey", "order": "ASCENDING" },
         { "fieldPath": "submittedAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "auditLog",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recordId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -2,6 +2,7 @@ import { useAuth } from "./auth/useAuth";
 import { SignIn } from "./auth/SignIn";
 import { AccessDenied } from "./auth/AccessDenied";
 import { ManageUsersScreen } from "./admin/ManageUsersScreen";
+import { JobRecordReviewScreen } from "./admin/JobRecordReviewScreen";
 
 export default function App() {
   const { state, signIn, signOut } = useAuth();
@@ -24,6 +25,10 @@ export default function App() {
           </header>
           {state.access.roles.includes("applicationAdministrator") ? (
             <ManageUsersScreen />
+          ) : null}
+          {state.access.roles.includes("payrollAdministrator") ||
+          state.access.roles.includes("applicationAdministrator") ? (
+            <JobRecordReviewScreen roles={state.access.roles} />
           ) : null}
         </div>
       );

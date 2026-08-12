@@ -35,6 +35,14 @@ export interface JobRecord {
   /** True when submittedAt and createdAt differ enough to be implausible (e.g. a wrong device clock). Flags for review; never blocks. */
   timestampSuspect: boolean;
   duplicate: DuplicateLink;
+  /** Set during Payroll/Application Administrator review to flag an accuracy issue. Cleared once resolved. */
+  discrepancy: boolean;
+  /** A code from DISCREPANCY_REASONS. Non-null only while discrepancy is true. */
+  discrepancyReason: string | null;
+  /** Set once payroll processing on this record is finished. Cannot be set while discrepancy is true. */
+  closed: boolean;
+  /** Tracks whether this record's photos have been retrieved for payroll processing. Independent of discrepancy/closed. */
+  picturesDownloaded: boolean;
 }
 
 export function noDuplicateLink(): DuplicateLink {

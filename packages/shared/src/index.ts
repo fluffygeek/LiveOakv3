@@ -5,6 +5,8 @@ export type { UserRecord } from "./user.js";
 export { isAllowedWorkspaceDomain } from "./workspaceDomain.js";
 export { WORK_CODES, findWorkCode } from "./workCode.js";
 export type { WorkCode } from "./workCode.js";
+export { DISCREPANCY_REASONS, findDiscrepancyReason } from "./discrepancyReason.js";
+export type { DiscrepancyReason } from "./discrepancyReason.js";
 export { noDuplicateLink } from "./jobRecord.js";
 export type {
   AddressVerificationStatus,
