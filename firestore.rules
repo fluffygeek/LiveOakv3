@@ -1,0 +1,13 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All reads/writes go through the Cloud Functions callables (Admin SDK,
+    // which bypasses these rules) so business rules — the allowlist check,
+    // role checks, Closed/Discrepancy gating, etc. — live in one place.
+    // Direct client access is denied entirely.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
