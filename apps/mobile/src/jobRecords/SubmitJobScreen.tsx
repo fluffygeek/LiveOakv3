@@ -23,7 +23,6 @@ import {
   saveDraft,
   type JobRecordDraft,
 } from "./storage";
-import { useJobRecordSync } from "./useJobRecordSync";
 
 const EMPTY_DRAFT: JobRecordDraft = {
   jobId: "",
@@ -39,8 +38,6 @@ export function SubmitJobScreen() {
   const [draft, setDraft] = useState<JobRecordDraft>(EMPTY_DRAFT);
   const [loaded, setLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  useJobRecordSync();
 
   useEffect(() => {
     void getDraft().then((existing) => {

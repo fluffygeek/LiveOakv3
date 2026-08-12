@@ -17,6 +17,12 @@ export interface JobRecordRepository {
   getById(recordId: string): Promise<JobRecord | null>;
   /** All Job Records, for the Payroll/Application Administrator review list. */
   list(): Promise<JobRecord[]>;
+  /** A Technician's own records with submittedAt in [startIso, endIso) — for the weekly list. */
+  listByTechnicianAndWindow(
+    technicianEmail: string,
+    startIso: string,
+    endIso: string,
+  ): Promise<JobRecord[]>;
   /**
    * Atomically: finds active records whose normalized address matches
    * `normalizedAddress`, submitted on/after `sinceIso`; passes those matches

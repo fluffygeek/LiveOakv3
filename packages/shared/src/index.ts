@@ -15,3 +15,5 @@ export type {
 } from "./jobRecord.js";
 export { normalizeAddress } from "./address.js";
 export type { AuditLogEntry } from "./auditLog.js";
+export { easternWeekWindow } from "./easternWeek.js";
+export type { WeekWindow } from "./easternWeek.js";

@@ -7,6 +7,7 @@ import {
   parseSetDiscrepancyInput,
   parseSetFlagInput,
   parseUnlinkDuplicateInput,
+  parseWeeklyListInput,
 } from "./validation.js";
 
 function validPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -176,6 +177,20 @@ describe("parseSetFlagInput", () => {
     expect(() => parseSetFlagInput({ recordId: "record-1", value: "yes" })).toThrow(
       InvalidArgumentError,
     );
+  });
+});
+
+describe("parseWeeklyListInput", () => {
+  it("defaults weekOffset to 0 when absent", () => {
+    expect(parseWeeklyListInput({})).toEqual({ weekOffset: 0 });
+  });
+
+  it("parses a provided weekOffset", () => {
+    expect(parseWeeklyListInput({ weekOffset: -2 })).toEqual({ weekOffset: -2 });
+  });
+
+  it("rejects a non-integer weekOffset", () => {
+    expect(() => parseWeeklyListInput({ weekOffset: 1.5 })).toThrow(InvalidArgumentError);
   });
 });
 
