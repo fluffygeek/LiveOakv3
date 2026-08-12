@@ -205,6 +205,10 @@ export async function createJobRecord(
         createdAt,
         timestampSuspect: isTimestampSuspect(input.submittedAt, createdAt),
         duplicate: newRecordDuplicate,
+        discrepancy: false,
+        discrepancyReason: null,
+        closed: false,
+        picturesDownloaded: false,
       };
       return { record: newRecord, updatedMatches };
     },

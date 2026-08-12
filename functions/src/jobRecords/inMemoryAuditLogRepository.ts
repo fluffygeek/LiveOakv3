@@ -9,6 +9,10 @@ export class InMemoryAuditLogRepository implements AuditLogRepository {
     this.entries.push(entry);
   }
 
+  async listByRecordId(recordId: string): Promise<AuditLogEntry[]> {
+    return this.entries.filter((entry) => entry.recordId === recordId);
+  }
+
   all(): AuditLogEntry[] {
     return [...this.entries];
   }

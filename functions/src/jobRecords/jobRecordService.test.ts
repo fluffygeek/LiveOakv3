@@ -348,6 +348,10 @@ describe("createJobRecord — duplicate detection", () => {
       createdAt: "2025-10-01T12:00:00.000Z",
       timestampSuspect: false,
       duplicate: noDuplicateLink(),
+      discrepancy: false,
+      discrepancyReason: null,
+      closed: false,
+      picturesDownloaded: false,
       ...overrides,
     };
   }

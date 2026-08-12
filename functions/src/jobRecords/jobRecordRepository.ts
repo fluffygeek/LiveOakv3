@@ -7,7 +7,16 @@ export interface DuplicateLinkingResult {
 
 export interface JobRecordRepository {
   update(record: JobRecord): Promise<void>;
+  /**
+   * Writes every record as a single atomic unit — for edits that must keep
+   * two linked records consistent with each other (e.g. Duplicate
+   * override/unlink), so a failure partway through can't leave one side of
+   * the link updated and the other stale.
+   */
+  updateMany(records: JobRecord[]): Promise<void>;
   getById(recordId: string): Promise<JobRecord | null>;
+  /** All Job Records, for the Payroll/Application Administrator review list. */
+  list(): Promise<JobRecord[]>;
   /**
    * Atomically: finds active records whose normalized address matches
    * `normalizedAddress`, submitted on/after `sinceIso`; passes those matches

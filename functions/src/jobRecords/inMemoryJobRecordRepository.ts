@@ -9,8 +9,18 @@ export class InMemoryJobRecordRepository implements JobRecordRepository {
     this.recordsById.set(record.recordId, record);
   }
 
+  async updateMany(records: JobRecord[]): Promise<void> {
+    for (const record of records) {
+      this.recordsById.set(record.recordId, record);
+    }
+  }
+
   async getById(recordId: string): Promise<JobRecord | null> {
     return this.recordsById.get(recordId) ?? null;
+  }
+
+  async list(): Promise<JobRecord[]> {
+    return [...this.recordsById.values()];
   }
 
   async createWithDuplicateLinking(
