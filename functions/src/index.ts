@@ -1,11 +1,13 @@
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import {
   inviteUser as inviteUserService,
   listUsers as listUsersService,
   resolveAccess,
   revokeUser as revokeUserService,
+  setDistributionListMembership as setDistributionListMembershipService,
   updateUserRoles as updateUserRolesService,
   type ResolvedAccess,
 } from "./access/accessService.js";
@@ -21,7 +23,7 @@ import {
   UserNotFoundError,
 } from "./access/errors.js";
 import { FirestoreUserRepository } from "./access/firestoreUserRepository.js";
-import { parseEmail, parseRoles } from "./access/validation.js";
+import { parseEmail, parseOnDistributionList, parseRoles } from "./access/validation.js";
 import { NotConfiguredAddressVerifier } from "./jobRecords/notConfiguredAddressVerifier.js";
 import { FirestoreAuditLogRepository } from "./jobRecords/firestoreAuditLogRepository.js";
 import { FirestoreJobRecordRepository } from "./jobRecords/firestoreJobRecordRepository.js";
@@ -47,6 +49,10 @@ import {
   parseUnlinkDuplicateInput,
   parseWeeklyListInput,
 } from "./jobRecords/validation.js";
+import { sendDiscrepancyEmail } from "./notifications/discrepancyEmailService.js";
+import { NotConfiguredEmailSender } from "./notifications/notConfiguredEmailSender.js";
+import { generateStateExport } from "./notifications/stateExportService.js";
+import { FirestoreStateExportRepository } from "./notifications/firestoreStateExportRepository.js";
 
 initializeApp();
 
@@ -64,6 +70,23 @@ function jobRecordDeps() {
     jobRecordRepo: new FirestoreJobRecordRepository(db),
     auditLogRepo: new FirestoreAuditLogRepository(db),
     addressVerifier: new NotConfiguredAddressVerifier(),
+  };
+}
+
+function discrepancyEmailDeps() {
+  const db = getFirestore();
+  return {
+    jobRecordRepo: new FirestoreJobRecordRepository(db),
+    userRepo: repository(),
+    emailSender: new NotConfiguredEmailSender(),
+  };
+}
+
+function stateExportDeps() {
+  const db = getFirestore();
+  return {
+    jobRecordRepo: new FirestoreJobRecordRepository(db),
+    stateExportRepo: new FirestoreStateExportRepository(db),
   };
 }
 
@@ -309,3 +332,38 @@ export const listMyWeeklyJobRecords = onCall(async (request) => {
     throw toHttpsError(error);
   }
 });
+
+export const setDistributionListMembership = onCall(async (request) => {
+  try {
+    const caller = await requireCaller(request.auth);
+    const data = request.data as Record<string, unknown>;
+    const email = parseEmail(data.email);
+    const onDistributionList = parseOnDistributionList(data.onDistributionList);
+    return await setDistributionListMembershipService(
+      repository(),
+      caller.roles,
+      email,
+      onDistributionList,
+    );
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+// 8pm Central — before the state export, so the export reflects a settled
+// day rather than racing it. Cloud Scheduler resolves this fixed local time
+// against America/Chicago's DST rules itself; nothing in this codebase
+// computes that offset the way easternWeekWindow does for #5.
+export const nightlyDiscrepancyEmail = onSchedule(
+  { schedule: "0 20 * * *", timeZone: "America/Chicago" },
+  async () => {
+    await sendDiscrepancyEmail(discrepancyEmailDeps());
+  },
+);
+
+export const nightlyStateExport = onSchedule(
+  { schedule: "0 21 * * *", timeZone: "America/Chicago" },
+  async () => {
+    await generateStateExport(stateExportDeps());
+  },
+);

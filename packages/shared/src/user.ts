@@ -8,6 +8,8 @@ export interface UserRecord {
   active: boolean;
   invitedAt: string;
   updatedAt: string;
+  /** On the Distribution List for the nightly Discrepancy email. Only valid while roles includes payrollAdministrator or applicationAdministrator. */
+  onDistributionList: boolean;
 }
 
 export function normalizeEmail(email: string): string {

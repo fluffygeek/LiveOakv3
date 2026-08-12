@@ -1,4 +1,4 @@
-export { ROLES, isRole } from "./roles.js";
+export { ROLES, isRole, isDistributionListEligibleRole } from "./roles.js";
 export type { Role } from "./roles.js";
 export { normalizeEmail } from "./user.js";
 export type { UserRecord } from "./user.js";
@@ -17,3 +17,5 @@ export { normalizeAddress } from "./address.js";
 export type { AuditLogEntry } from "./auditLog.js";
 export { easternWeekWindow } from "./easternWeek.js";
 export type { WeekWindow } from "./easternWeek.js";
+export { extractStateCode } from "./usState.js";
+export type { StateExportBatch } from "./stateExport.js";

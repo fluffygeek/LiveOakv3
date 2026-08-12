@@ -44,6 +44,11 @@ export class FirestoreJobRecordRepository implements JobRecordRepository {
     return snapshot.docs.map((doc) => fromDocument(doc.data()));
   }
 
+  async listWithActiveDiscrepancy(): Promise<JobRecord[]> {
+    const snapshot = await this.db.collection(COLLECTION).where("discrepancy", "==", true).get();
+    return snapshot.docs.map((doc) => fromDocument(doc.data()));
+  }
+
   async listByTechnicianAndWindow(
     technicianEmail: string,
     startIso: string,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { httpsCallable } from "firebase/functions";
-import { ROLES, type Role, type UserRecord } from "@liveoakv3/shared";
+import { isDistributionListEligibleRole, ROLES, type Role, type UserRecord } from "@liveoakv3/shared";
 import { functions } from "../firebase";
 
 const listUsersFn = httpsCallable<void, UserRecord[]>(functions, "listUsers");
@@ -16,6 +16,10 @@ const revokeUserFn = httpsCallable<{ email: string }, { revoked: boolean }>(
   functions,
   "revokeUser",
 );
+const setDistributionListMembershipFn = httpsCallable<
+  { email: string; onDistributionList: boolean },
+  UserRecord
+>(functions, "setDistributionListMembership");
 
 export function ManageUsersScreen() {
   const [users, setUsers] = useState<UserRecord[]>([]);
@@ -63,6 +67,11 @@ export function ManageUsersScreen() {
     await refresh();
   };
 
+  const toggleDistributionList = async (email: string, onDistributionList: boolean) => {
+    await setDistributionListMembershipFn({ email, onDistributionList });
+    await refresh();
+  };
+
   return (
     <section>
       <h2>Manage users</h2>
@@ -103,12 +112,15 @@ export function ManageUsersScreen() {
             <tr>
               <th>Email</th>
               <th>Roles</th>
+              <th>Distribution List</th>
               <th>Status</th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
+            {users.map((user) => {
+              const distributionListEligible = isDistributionListEligibleRole(user.roles);
+              return (
               <tr key={user.email}>
                 <td>{user.email}</td>
                 <td>
@@ -123,6 +135,21 @@ export function ManageUsersScreen() {
                     </label>
                   ))}
                 </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={user.onDistributionList}
+                    disabled={!distributionListEligible}
+                    title={
+                      distributionListEligible
+                        ? undefined
+                        : "Requires the Payroll Administrator or Application Administrator role"
+                    }
+                    onChange={() =>
+                      void toggleDistributionList(user.email, !user.onDistributionList)
+                    }
+                  />
+                </td>
                 <td>{user.active ? "Active" : "Revoked"}</td>
                 <td>
                   {user.active ? (
@@ -132,7 +159,8 @@ export function ManageUsersScreen() {
                   ) : null}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       )}

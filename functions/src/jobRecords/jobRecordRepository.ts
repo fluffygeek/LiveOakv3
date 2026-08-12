@@ -23,6 +23,8 @@ export interface JobRecordRepository {
     startIso: string,
     endIso: string,
   ): Promise<JobRecord[]>;
+  /** Every record with an active Discrepancy — for the nightly Discrepancy email. */
+  listWithActiveDiscrepancy(): Promise<JobRecord[]>;
   /**
    * Atomically: finds active records whose normalized address matches
    * `normalizedAddress`, submitted on/after `sinceIso`; passes those matches

@@ -20,3 +20,10 @@ export function parseRoles(value: unknown): Role[] {
     return item;
   });
 }
+
+export function parseOnDistributionList(value: unknown): boolean {
+  if (typeof value !== "boolean") {
+    throw new InvalidArgumentError("onDistributionList must be a boolean");
+  }
+  return value;
+}
