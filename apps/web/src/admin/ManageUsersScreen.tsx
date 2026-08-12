@@ -1,0 +1,141 @@
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { httpsCallable } from "firebase/functions";
+import { ROLES, type Role, type UserRecord } from "@liveoakv3/shared";
+import { functions } from "../firebase";
+
+const listUsersFn = httpsCallable<void, UserRecord[]>(functions, "listUsers");
+const inviteUserFn = httpsCallable<{ email: string; roles: Role[] }, UserRecord>(
+  functions,
+  "inviteUser",
+);
+const updateUserRolesFn = httpsCallable<
+  { email: string; roles: Role[] },
+  UserRecord
+>(functions, "updateUserRoles");
+const revokeUserFn = httpsCallable<{ email: string }, { revoked: boolean }>(
+  functions,
+  "revokeUser",
+);
+
+export function ManageUsersScreen() {
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRoles, setInviteRoles] = useState<Role[]>([]);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await listUsersFn();
+      setUsers(result.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load users");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const handleInvite = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!inviteEmail || inviteRoles.length === 0) return;
+    await inviteUserFn({ email: inviteEmail, roles: inviteRoles });
+    setInviteEmail("");
+    setInviteRoles([]);
+    await refresh();
+  };
+
+  const toggleRole = async (email: string, role: Role, currentRoles: Role[]) => {
+    const nextRoles = currentRoles.includes(role)
+      ? currentRoles.filter((r) => r !== role)
+      : [...currentRoles, role];
+    await updateUserRolesFn({ email, roles: nextRoles });
+    await refresh();
+  };
+
+  const handleRevoke = async (email: string) => {
+    await revokeUserFn({ email });
+    await refresh();
+  };
+
+  return (
+    <section>
+      <h2>Manage users</h2>
+
+      <form onSubmit={handleInvite}>
+        <input
+          type="email"
+          placeholder="name@company.com"
+          value={inviteEmail}
+          onChange={(event) => setInviteEmail(event.target.value)}
+          required
+        />
+        {ROLES.map((role) => (
+          <label key={role}>
+            <input
+              type="checkbox"
+              checked={inviteRoles.includes(role)}
+              onChange={() =>
+                setInviteRoles((prev) =>
+                  prev.includes(role)
+                    ? prev.filter((r) => r !== role)
+                    : [...prev, role],
+                )
+              }
+            />
+            {role}
+          </label>
+        ))}
+        <button type="submit">Invite</button>
+      </form>
+
+      {error ? <p role="alert">{error}</p> : null}
+      {loading ? (
+        <p>Loading…</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Roles</th>
+              <th>Status</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((user) => (
+              <tr key={user.email}>
+                <td>{user.email}</td>
+                <td>
+                  {ROLES.map((role) => (
+                    <label key={role}>
+                      <input
+                        type="checkbox"
+                        checked={user.roles.includes(role)}
+                        onChange={() => void toggleRole(user.email, role, user.roles)}
+                      />
+                      {role}
+                    </label>
+                  ))}
+                </td>
+                <td>{user.active ? "Active" : "Revoked"}</td>
+                <td>
+                  {user.active ? (
+                    <button onClick={() => void handleRevoke(user.email)}>
+                      Revoke
+                    </button>
+                  ) : null}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}

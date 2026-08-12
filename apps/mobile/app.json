@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "LiveOakv3",
+    "slug": "liveoakv3",
+    "scheme": "liveoakv3",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.liveoakv3.mobile"
+    },
+    "android": {
+      "package": "com.liveoakv3.mobile"
+    }
+  }
+}
