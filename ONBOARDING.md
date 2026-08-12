@@ -42,6 +42,29 @@ The project uses specific words on purpose, so everyone means the same thing. Tr
 
 For the full list, see [`CONTEXT.md`](./CONTEXT.md) in the root of the project.
 
+Here's what happens to a Job Record after it's submitted:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Submitted: Technician submits from the phone app
+
+    Submitted --> Discrepancy: Payroll/Admin flags an issue
+    Discrepancy --> Submitted: Payroll/Admin clears the flag
+
+    Submitted --> Closed: Payroll/Admin closes it
+    Closed --> [*]
+
+    note right of Closed
+        Can't Close a record while
+        Discrepancy is active. Once Closed,
+        a Payroll Administrator can't edit
+        it anymore — an Application
+        Administrator still can.
+    end note
+```
+
+A Technician can only ever see this happen from the outside — once they submit, the record belongs to Payroll and Application Administrators. (Separately, a **Duplicate** flag can attach to a record at any point along this path — it's detected automatically, not part of this status flow.)
+
 ---
 
 ## 4. How the Code Is Organized
@@ -64,6 +87,29 @@ LiveOakv3/
 ```
 
 **A simple way to think about it:** the phone app and website are the two "front doors." The `functions` folder is the "back office" that both front doors talk to. The `shared` package is a toolbox both front doors and the back office use, so they don't repeat themselves.
+
+```mermaid
+flowchart TD
+    Mobile["apps/mobile\nPhone app — Technician"]
+    Web["apps/web\nWebsite — Payroll & Application Administrator"]
+    Shared["packages/shared\nShared types & rules"]
+    Functions["functions\nBackend (Cloud Functions)"]
+    Auth["Firebase Auth\nsign-in"]
+    DB["Firestore\ndatabase"]
+    Nightly["Nightly scheduled jobs\nstate export + discrepancy email"]
+
+    Mobile -- "submit Job Records" --> Functions
+    Web -- "review / edit Job Records" --> Functions
+    Functions --> Auth
+    Functions --> DB
+    Functions --> Nightly
+
+    Shared -. used by .-> Mobile
+    Shared -. used by .-> Web
+    Shared -. used by .-> Functions
+```
+
+The phone app and website never talk to the database directly — everything goes through `functions`, which checks who you are and what role you have before touching any data.
 
 ---
 

@@ -13,6 +13,15 @@ Two ways to run a demo, pick one:
 Both paths share the [prerequisites](#prerequisites) and the
 [first-admin bootstrap](#bootstrapping-the-first-admin) step below.
 
+```mermaid
+flowchart TD
+    Start["Need to run a demo"] --> Q{"Does someone outside\nthe room need a URL?"}
+    Q -- "No" --> A["Path A: Local Emulator Suite\nFastest, no billing, no live project"]
+    Q -- "Yes" --> B["Path B: Live Firebase project\nReal deployed backend + hosted web app"]
+    A --> Prereq["Shared: prerequisites +\nfirst-admin bootstrap"]
+    B --> Prereq
+```
+
 ## Prerequisites
 
 - Node 20 (`functions/package.json` pins `engines.node: "20"`, matching
@@ -117,6 +126,23 @@ when `import.meta.env.DEV` is true (i.e. `vite dev`, not `vite build`) — no ex
 needed. It also defaults `VITE_FIREBASE_PROJECT_ID` to `liveoakv3-dev` (the project ID
 in `.firebaserc`) when no `.env` is present, so this works with zero configuration.
 
+```mermaid
+sequenceDiagram
+    participant You
+    participant Shared as packages/shared
+    participant Fn as functions
+    participant Emu as Firebase Emulators
+    participant Web as apps/web (vite dev)
+
+    You->>Shared: npm run build --workspace=packages/shared
+    You->>Fn: npm run build --workspace=functions
+    You->>Emu: npx firebase-tools emulators:start --only auth,firestore,functions
+    You->>Web: npm run dev --workspace=apps/web
+    Web->>Emu: connects automatically (DEV mode)
+    You->>Emu: bootstrap first admin (curl or Emulator UI)
+    You->>Web: sign in as that admin, invite everyone else
+```
+
 ### Path B — against a live project
 
 1. `firebase use --add` to point `.firebaserc` at the real project (or add a second
@@ -145,6 +171,16 @@ in `.firebaserc`) when no `.env` is present, so this works with zero configurati
    npx firebase-tools deploy --only firestore,functions,hosting
    ```
 7. Bootstrap the first admin (see above), then visit the Hosting URL Firebase prints.
+
+```mermaid
+flowchart TD
+    S1["1. firebase use --add\npoint .firebaserc at the real project"] --> S2["2. Add a Web app in the\nFirebase Console, copy config"]
+    S2 --> S3["3. Create apps/web/.env.production\nwith the 4 VITE_ vars"]
+    S3 --> S4["4. Enable Google sign-in +\nauthorized domains"]
+    S4 --> S5["5. Set ALLOWED_WORKSPACE_DOMAIN in\nfunctions/.env.&lt;project-id&gt;"]
+    S5 --> S6["6. Build shared, functions, web,\nthen firebase-tools deploy"]
+    S6 --> S7["7. Bootstrap first admin,\nvisit the Hosting URL"]
+```
 
 ## Mobile app
 
