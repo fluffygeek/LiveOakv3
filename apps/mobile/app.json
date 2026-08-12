@@ -13,6 +13,15 @@
     },
     "android": {
       "package": "com.liveoakv3.mobile"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "LiveOakv3 needs photo library access so Technicians can attach job photos.",
+          "cameraPermission": "LiveOakv3 needs camera access so Technicians can photograph completed work."
+        }
+      ]
+    ]
   }
 }
