@@ -3,6 +3,7 @@ import type { UserRecord } from "@liveoakv3/shared";
 import {
   AccessDeniedError,
   ForbiddenError,
+  InvalidArgumentError,
   LastAdministratorError,
   NotAllowlistedError,
   UserNotFoundError,
@@ -13,6 +14,7 @@ import {
   listUsers,
   resolveAccess,
   revokeUser,
+  setDistributionListMembership,
   updateUserRoles,
 } from "./accessService.js";
 
@@ -26,6 +28,7 @@ function adminRecord(email: string): UserRecord {
     active: true,
     invitedAt: FIXED_NOW(),
     updatedAt: FIXED_NOW(),
+    onDistributionList: false,
   };
 }
 
@@ -43,6 +46,7 @@ describe("resolveAccess", () => {
       active: true,
       invitedAt: FIXED_NOW(),
       updatedAt: FIXED_NOW(),
+      onDistributionList: false,
     });
 
     const result = await resolveAccess(
@@ -61,6 +65,7 @@ describe("resolveAccess", () => {
       active: true,
       invitedAt: FIXED_NOW(),
       updatedAt: FIXED_NOW(),
+      onDistributionList: false,
     });
 
     await expect(
@@ -89,6 +94,7 @@ describe("resolveAccess", () => {
       active: false,
       invitedAt: FIXED_NOW(),
       updatedAt: FIXED_NOW(),
+      onDistributionList: false,
     });
 
     await expect(
@@ -107,6 +113,7 @@ describe("resolveAccess", () => {
       active: true,
       invitedAt: FIXED_NOW(),
       updatedAt: FIXED_NOW(),
+      onDistributionList: false,
     });
 
     const result = await resolveAccess(
@@ -200,6 +207,7 @@ describe("updateUserRoles", () => {
       active: true,
       invitedAt: FIXED_NOW(),
       updatedAt: FIXED_NOW(),
+      onDistributionList: false,
     });
 
     const updated = await updateUserRoles(
@@ -234,6 +242,7 @@ describe("updateUserRoles", () => {
       active: true,
       invitedAt: FIXED_NOW(),
       updatedAt: FIXED_NOW(),
+      onDistributionList: false,
     });
 
     await expect(
@@ -256,6 +265,7 @@ describe("revokeUser", () => {
       active: true,
       invitedAt: FIXED_NOW(),
       updatedAt: FIXED_NOW(),
+      onDistributionList: false,
     });
 
     await revokeUser(repo, ["applicationAdministrator"], "person@example.com", FIXED_NOW);
@@ -278,6 +288,7 @@ describe("revokeUser", () => {
       active: true,
       invitedAt: FIXED_NOW(),
       updatedAt: FIXED_NOW(),
+      onDistributionList: false,
     });
 
     await expect(
@@ -301,6 +312,7 @@ describe("listUsers", () => {
       active: true,
       invitedAt: FIXED_NOW(),
       updatedAt: FIXED_NOW(),
+      onDistributionList: false,
     });
 
     const users = await listUsers(repo, ["applicationAdministrator"]);
@@ -315,6 +327,124 @@ describe("listUsers", () => {
     await expect(listUsers(repo, ["payrollAdministrator"])).rejects.toThrow(
       ForbiddenError,
     );
+  });
+});
+
+describe("setDistributionListMembership", () => {
+  let repo: InMemoryUserRepository;
+
+  beforeEach(() => {
+    repo = new InMemoryUserRepository();
+  });
+
+  it("adds a Payroll Administrator to the Distribution List", async () => {
+    repo.seed({
+      email: "payroll@example.com",
+      roles: ["payrollAdministrator"],
+      active: true,
+      invitedAt: FIXED_NOW(),
+      updatedAt: FIXED_NOW(),
+      onDistributionList: false,
+    });
+
+    const updated = await setDistributionListMembership(
+      repo,
+      ["applicationAdministrator"],
+      "payroll@example.com",
+      true,
+      FIXED_NOW,
+    );
+
+    expect(updated.onDistributionList).toBe(true);
+  });
+
+  it("adds an Application Administrator to the Distribution List", async () => {
+    repo.seed(adminRecord("admin@example.com"));
+
+    const updated = await setDistributionListMembership(
+      repo,
+      ["applicationAdministrator"],
+      "admin@example.com",
+      true,
+      FIXED_NOW,
+    );
+
+    expect(updated.onDistributionList).toBe(true);
+  });
+
+  it("rejects adding a Technician-only user to the Distribution List", async () => {
+    repo.seed({
+      email: "tech@example.com",
+      roles: ["technician"],
+      active: true,
+      invitedAt: FIXED_NOW(),
+      updatedAt: FIXED_NOW(),
+      onDistributionList: false,
+    });
+
+    await expect(
+      setDistributionListMembership(
+        repo,
+        ["applicationAdministrator"],
+        "tech@example.com",
+        true,
+        FIXED_NOW,
+      ),
+    ).rejects.toThrow(InvalidArgumentError);
+  });
+
+  it("allows removing anyone from the Distribution List regardless of role", async () => {
+    repo.seed({
+      email: "payroll@example.com",
+      roles: ["payrollAdministrator"],
+      active: true,
+      invitedAt: FIXED_NOW(),
+      updatedAt: FIXED_NOW(),
+      onDistributionList: true,
+    });
+
+    const updated = await setDistributionListMembership(
+      repo,
+      ["applicationAdministrator"],
+      "payroll@example.com",
+      false,
+      FIXED_NOW,
+    );
+
+    expect(updated.onDistributionList).toBe(false);
+  });
+
+  it("rejects a caller who is not an Application Administrator", async () => {
+    repo.seed({
+      email: "payroll@example.com",
+      roles: ["payrollAdministrator"],
+      active: true,
+      invitedAt: FIXED_NOW(),
+      updatedAt: FIXED_NOW(),
+      onDistributionList: false,
+    });
+
+    await expect(
+      setDistributionListMembership(
+        repo,
+        ["payrollAdministrator"],
+        "payroll@example.com",
+        true,
+        FIXED_NOW,
+      ),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it("rejects a target user who was never invited", async () => {
+    await expect(
+      setDistributionListMembership(
+        repo,
+        ["applicationAdministrator"],
+        "ghost@example.com",
+        true,
+        FIXED_NOW,
+      ),
+    ).rejects.toThrow(UserNotFoundError);
   });
 });
 
@@ -403,6 +533,7 @@ describe("last administrator protection", () => {
       active: false,
       invitedAt: FIXED_NOW(),
       updatedAt: FIXED_NOW(),
+      onDistributionList: false,
     });
 
     await expect(

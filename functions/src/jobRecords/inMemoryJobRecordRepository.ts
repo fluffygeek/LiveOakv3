@@ -36,6 +36,10 @@ export class InMemoryJobRecordRepository implements JobRecordRepository {
     );
   }
 
+  async listWithActiveDiscrepancy(): Promise<JobRecord[]> {
+    return [...this.recordsById.values()].filter((record) => record.discrepancy);
+  }
+
   async createWithDuplicateLinking(
     normalizedAddress: string,
     sinceIso: string,

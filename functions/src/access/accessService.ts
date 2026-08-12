@@ -1,7 +1,14 @@
-import { isAllowedWorkspaceDomain, normalizeEmail, type Role, type UserRecord } from "@liveoakv3/shared";
+import {
+  isAllowedWorkspaceDomain,
+  isDistributionListEligibleRole,
+  normalizeEmail,
+  type Role,
+  type UserRecord,
+} from "@liveoakv3/shared";
 import {
   AccessDeniedError,
   ForbiddenError,
+  InvalidArgumentError,
   LastAdministratorError,
   NotAllowlistedError,
   UserNotFoundError,
@@ -100,6 +107,7 @@ export async function inviteUser(
     active: true,
     invitedAt: existing?.invitedAt ?? timestamp,
     updatedAt: timestamp,
+    onDistributionList: existing?.onDistributionList ?? false,
   };
   await repo.putUser(record);
   return record;
@@ -125,6 +133,10 @@ export async function updateUserRoles(
     ...existing,
     roles: dedupeRoles(roles),
     updatedAt: now(),
+    // Backfills records written before onDistributionList existed — Firestore
+    // doesn't enforce the TS type, so a pre-existing doc may lack the field
+    // at runtime despite existing satisfying UserRecord at compile time.
+    onDistributionList: existing.onDistributionList ?? false,
   };
   await repo.putUser(record);
   return record;
@@ -145,7 +157,36 @@ export async function revokeUser(
   if (isActiveAdministrator(existing)) {
     await assertAnotherActiveAdministratorRemains(repo, email);
   }
-  await repo.putUser({ ...existing, active: false, updatedAt: now() });
+  await repo.putUser({
+    ...existing,
+    active: false,
+    updatedAt: now(),
+    onDistributionList: existing.onDistributionList ?? false,
+  });
+}
+
+/** Distribution List membership is limited to existing Payroll/Application Administrator users — never an arbitrary address. */
+export async function setDistributionListMembership(
+  repo: UserRepository,
+  callerRoles: Role[],
+  targetEmail: string,
+  onDistributionList: boolean,
+  now: () => string = defaultNow,
+): Promise<UserRecord> {
+  requireApplicationAdministrator(callerRoles);
+  const email = normalizeEmail(targetEmail);
+  const existing = await repo.getUser(email);
+  if (!existing) {
+    throw new UserNotFoundError(`${email} has not been invited`);
+  }
+  if (onDistributionList && !isDistributionListEligibleRole(existing.roles)) {
+    throw new InvalidArgumentError(
+      `${email} must hold the Payroll Administrator or Application Administrator role to join the Distribution List`,
+    );
+  }
+  const record: UserRecord = { ...existing, onDistributionList, updatedAt: now() };
+  await repo.putUser(record);
+  return record;
 }
 
 export async function listUsers(

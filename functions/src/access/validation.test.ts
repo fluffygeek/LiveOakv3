@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { InvalidArgumentError } from "./errors.js";
-import { parseEmail, parseRoles } from "./validation.js";
+import { parseEmail, parseOnDistributionList, parseRoles } from "./validation.js";
 
 describe("parseEmail", () => {
   it("returns a non-empty string as-is", () => {
@@ -44,5 +44,16 @@ describe("parseRoles", () => {
 
   it("accepts an empty array", () => {
     expect(parseRoles([])).toEqual([]);
+  });
+});
+
+describe("parseOnDistributionList", () => {
+  it("returns a boolean as-is", () => {
+    expect(parseOnDistributionList(true)).toBe(true);
+    expect(parseOnDistributionList(false)).toBe(false);
+  });
+
+  it("rejects a non-boolean value", () => {
+    expect(() => parseOnDistributionList("true")).toThrow(InvalidArgumentError);
   });
 });
