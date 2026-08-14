@@ -17,5 +17,6 @@ export { normalizeAddress } from "./address.js";
 export type { AuditLogEntry } from "./auditLog.js";
 export { easternWeekWindow } from "./easternWeek.js";
 export type { WeekWindow } from "./easternWeek.js";
+export { isCentralWallClockTime } from "./centralTime.js";
 export { extractStateCode } from "./usState.js";
 export type { StateExportBatch } from "./stateExport.js";

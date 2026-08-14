@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "check": "deno check _shared/*.ts ping/index.ts",
+    "check": "deno check _shared/*.ts ping/index.ts scheduled-ping/index.ts",
     "test": "deno test --allow-env --allow-net _shared/"
   },
   "imports": {
