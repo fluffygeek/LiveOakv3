@@ -32,3 +32,5 @@ ui-debug.log
 .DS_Store
 .vscode/
 *.log
+.vercel
+.env*
