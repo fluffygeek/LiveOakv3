@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  type User,
-} from "firebase/auth";
-import { httpsCallable } from "firebase/functions";
+import type { User } from "@supabase/supabase-js";
 import type { Role } from "@liveoakv3/shared";
-import { auth, functions, googleProvider } from "../firebase";
+import { supabase, workspaceDomain } from "../supabase";
 
 export interface ResolvedAccess {
   email: string;
@@ -24,30 +18,45 @@ export function useAuth() {
   const [state, setState] = useState<AuthState>({ status: "loading" });
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (user) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const user = session?.user ?? null;
       if (!user) {
         setState({ status: "signedOut" });
         return;
       }
       try {
-        const resolveMyAccess = httpsCallable<void, ResolvedAccess>(
-          functions,
+        // resolveMyAccess (supabase/functions/resolveMyAccess) resolves the caller's
+        // roles server-side — same isAllowedWorkspaceDomain + allowlist enforcement the
+        // Firebase callable of the same name provided, ported unchanged.
+        const { data, error } = await supabase.functions.invoke<ResolvedAccess>(
           "resolveMyAccess",
         );
-        const result = await resolveMyAccess();
-        setState({ status: "signedIn", user, access: result.data });
+        if (error || !data) {
+          throw error ?? new Error("resolveMyAccess returned no data");
+        }
+        setState({ status: "signedIn", user, access: data });
       } catch {
         setState({ status: "denied" });
       }
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = useCallback(async () => {
-    await signInWithPopup(auth, googleProvider);
+    // The `hd` query param is a UX hint only on Google's consent screen — the Workspace
+    // domain is authoritatively enforced server-side (resolveMyAccess -> resolveAccess ->
+    // isAllowedWorkspaceDomain), not by this parameter.
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { queryParams: { hd: workspaceDomain } },
+    });
   }, []);
 
   const signOut = useCallback(async () => {
-    await firebaseSignOut(auth);
+    await supabase.auth.signOut();
   }, []);
 
   return { state, signIn, signOut };

@@ -334,6 +334,23 @@ skip_nonce_check = false
 # If enabled, it will allow the user to successfully authenticate when the provider does not return an email address.
 email_optional = false
 
+# Google Workspace sign-in (ticket #18) — apps/web's useAuth.ts calls signInWithOAuth with
+# provider: "google". No real Google OAuth client is provisioned here (per this ticket's
+# scope); client_id/secret are placeholders like the rest of this codebase's
+# ALLOWED_WORKSPACE_DOMAIN handling (functions/src/callableHandler.ts,
+# supabase/functions/resolveMyAccess) until a real Workspace domain + OAuth client exist.
+# The Workspace-domain restriction itself is enforced server-side by
+# isAllowedWorkspaceDomain via resolveMyAccess, not by this provider config — see
+# docs/research/supabase-migration-effort.md §2.1.
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+# DO NOT commit your OAuth provider secret to git. Use environment variable substitution instead:
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+redirect_uri = ""
+url = ""
+skip_nonce_check = false
+
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
 # You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.
 [auth.web3.solana]
