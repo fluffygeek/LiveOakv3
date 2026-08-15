@@ -1,9 +1,13 @@
 import { initializeApp } from "firebase/app";
-import { connectAuthEmulator, getAuth, GoogleAuthProvider } from "firebase/auth";
 import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 
 // Placeholder values for local development against the emulator suite.
 // Replace via VITE_* env vars once a real Firebase project exists.
+//
+// Sign-in and access resolution moved to Supabase Auth (see ./supabase.ts and
+// ./auth/useAuth.ts, ticket #18) — this module now only backs the Cloud Functions
+// callables that haven't been ported to Edge Functions yet (ManageUsersScreen,
+// JobRecordReviewScreen).
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? "demo-api-key",
   authDomain:
@@ -12,16 +16,8 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
 export const functions = getFunctions(app);
 
-export const googleProvider = new GoogleAuthProvider();
-// UX-level hint only — the Workspace domain is authoritatively enforced
-// server-side in resolveAccess (functions/src/access/accessService.ts).
-const workspaceDomain = import.meta.env.VITE_WORKSPACE_DOMAIN ?? "example.com";
-googleProvider.setCustomParameters({ hd: workspaceDomain });
-
 if (import.meta.env.DEV) {
-  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 }

@@ -1,9 +1,11 @@
 {
   "tasks": {
-    "check": "deno check _shared/*.ts ping/index.ts scheduled-ping/index.ts",
-    "test": "deno test --allow-env --allow-net _shared/"
+    "check": "deno check _shared/*.ts ping/index.ts scheduled-ping/index.ts resolveMyAccess/*.ts",
+    "test": "deno test --allow-env --allow-net _shared/ resolveMyAccess/"
   },
   "imports": {
-    "@supabase/supabase-js": "jsr:@supabase/supabase-js@2"
-  }
+    "@supabase/supabase-js": "jsr:@supabase/supabase-js@2",
+    "@liveoakv3/shared": "../../packages/shared/src/index.ts"
+  },
+  "unstable": ["sloppy-imports"]
 }
