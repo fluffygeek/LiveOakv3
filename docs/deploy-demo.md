@@ -1,249 +1,234 @@
 # Deploying for a demo
 
-Two ways to run a demo, pick one:
+One way to run a demo today: **local, via the Supabase CLI's Docker-based stack** — no
+billing, no real Supabase project, no live URL. `supabase/config.toml` and
+`supabase/seed.sql` are already committed (tickets #16/#17), so there's no `supabase
+init` step for a fresh clone — just `supabase start`.
 
-- **A. Local (Firebase Emulator Suite)** — no billing, no real Google Workspace, no
-  live Firebase project. Fastest to stand up, and this exact path was verified
-  end-to-end (web + emulators) while building spec #6. **Recommended** unless you
-  need a URL to hand someone who isn't in the room.
-- **B. Live Firebase project** — a real deployed backend + hosted web app, reachable
-  by anyone with the URL. More setup, and the mobile app has a real limitation here
-  (see [Mobile app → against a live project](#against-a-live-project)).
+A second path — **a live, deployed Supabase project** reachable by anyone with a URL —
+doesn't exist yet. Provisioning one is tracked separately in #37 ("Provision production
+Supabase project"); once that lands, this doc will grow a second path the same way the
+old Firebase-era version had one. Until then, this doc only covers local dev.
 
-Both paths share the [prerequisites](#prerequisites) and the
-[first-admin bootstrap](#bootstrapping-the-first-admin) step below.
+**Read [Known gaps](#known-gaps-worth-disclosing-before-the-demo) before you start** —
+the migration from Firebase to Supabase is in progress and lands incrementally. As of
+this writing, `supabase start` fails outright on an unmodified checkout (tracked as
+#42), and a couple of other pieces (Google sign-in, the weekly-list screen) aren't wired
+up locally yet either. None of that is specific to this doc; it reflects where `main`
+actually is right now.
 
 ```mermaid
 flowchart TD
-    Start["Need to run a demo"] --> Q{"Does someone outside\nthe room need a URL?"}
-    Q -- "No" --> A["Path A: Local Emulator Suite\nFastest, no billing, no live project"]
-    Q -- "Yes" --> B["Path B: Live Firebase project\nReal deployed backend + hosted web app"]
-    A --> Prereq["Shared: prerequisites +\nfirst-admin bootstrap"]
-    B --> Prereq
+    Start["Need to run a demo"] --> Stack["supabase start\n(Docker: Postgres, Auth, REST, Studio, Edge Functions)"]
+    Stack --> Bootstrap["Bootstrap the first admin\nservice_role REST insert into public.users"]
+    Bootstrap --> Web["npm run dev --workspace=apps/web"]
+    Bootstrap --> Mobile["npx expo start (apps/mobile)"]
+    Web -.- Gap["Edge Functions don't serve yet — #42\nresolveMyAccess/createJobRecord/etc blocked until fixed"]
+    Mobile -.- Gap
 ```
 
 ## Prerequisites
 
-- Node 20 (`functions/package.json` pins `engines.node: "20"`, matching
-  `firebase.json`'s `functions.runtime: "nodejs20"`)
-- `npx firebase-tools` (no need to install globally — every command below uses `npx`)
-- For path A: a JVM on `PATH` — the Firestore/Auth emulators are Java-based. Nothing
-  else.
-- For path B: a real Firebase project on the **Blaze** (pay-as-you-go) plan — Cloud
-  Functions 2nd gen (everything in `functions/`, including the two nightly
-  `onSchedule` jobs) will not deploy on the free Spark plan.
-- For the mobile app either way: the **Expo Go** app on a physical phone, or an
-  iOS/Android simulator. There's no `eas.json` in this repo — `apps/mobile` only has
-  `expo start`/`--android`/`--ios` scripts, no standalone build config. A demo means
-  running through Expo Go or a simulator, not installing a built app.
+- Node 20 (`functions/package.json` still pins `engines.node: "20"` for the
+  not-yet-fully-retired Firebase Functions codebase; nothing in `apps/web` or
+  `apps/mobile` pins a version, but the workspace is built and tested on Node 20).
+- **Docker** on `PATH` and its daemon running — the local Supabase stack runs entirely as
+  Docker containers (Postgres, GoTrue/Auth, PostgREST, Studio, Realtime, Storage, the
+  Edge Functions runtime, etc.), replacing the old JVM-based Firestore/Auth emulators.
+  Verified in this environment: `docker --version` → 29.7.2, `docker info` reachable.
+- The `supabase` CLI — already a root `devDependencies` entry (`package.json`), so
+  `npx supabase <command>` works with no separate install. Verified:
+  `npx supabase --version` → 2.114.0.
+- For the mobile app: the **Expo Go** app on a physical phone, or an iOS/Android
+  simulator. Same as before — `apps/mobile` only has `expo start`/`--android`/`--ios`
+  scripts, no standalone build config.
 
 ## Known gaps, worth disclosing before the demo
 
-These are real, intentional stubs already in the code — not something this guide
-works around:
+These are real, current states of `main` as of this writing (2026-08-14) — not something
+this guide works around:
 
-- **Photos never leave the phone.** `SubmitJobScreen.tsx` stores the camera roll's
-  local `file://` URI directly into `photoUrls` — there's no Cloud Storage upload
-  wired up yet (see the comment in `apps/mobile/src/jobRecords/storage.ts`). A photo
-  taken on the demo phone won't be viewable from the web Admin/Payroll review screen.
-- **Address verification always reports "unverified."**
-  `NotConfiguredAddressVerifier` (`functions/src/jobRecords/notConfiguredAddressVerifier.ts`)
-  unconditionally returns `{ matched: false, normalizedAddress: null }` — this is
-  treated as non-blocking, not an error, so record submission still works.
-- **The nightly discrepancy email never actually sends.**
-  `NotConfiguredEmailSender` (`functions/src/notifications/notConfiguredEmailSender.ts`)
-  no-ops. The scheduled job still runs and queries Firestore correctly; nothing goes
-  out.
-- **There's no Cloud Storage bucket or `storage.rules` configured at all** —
-  `firebase.json` has no `storage` key. Only relevant if you plan to wire up the
-  photo upload above.
+- **`supabase start` fails outright on an unmodified checkout — tracked as #42.**
+  Several `supabase/functions/**` files (`_shared/postgresUserRepository.ts`,
+  `resolvedAccessHandler.ts`, `callableHandler.ts`, every function's `handler.ts`)
+  transitively import `functions/src/access/accessService.ts`, which imports
+  `./userRepository.js` — a `.js`-extension import pointing at a sibling `.ts` file (the
+  same Node/NodeNext-style pattern used throughout `functions/src/**`, unrelated to this
+  ticket). `deno check`/`deno test` resolve this fine via `sloppy-imports`
+  (`supabase/functions/deno.json`), but `supabase start`'s own Edge Function bundler does
+  not, and fails before starting *any* container — not just the Edge Runtime one — with:
+  ```
+  {"_tag":"Error","error":{"code":"UnknownError","message":"failed to read file: open functions/src/access/userRepository.js: no such file or directory"}}
+  ```
+  Confirmed live in this environment, with and without `-x edge-runtime`, with
+  `[edge_runtime] enabled = false`, and on a fresh Docker volume. **Verified workaround**
+  for exercising everything below `supabase/functions/`: temporarily move the directory
+  out of the way, start the stack, do your testing, move it back —
+  ```bash
+  mv supabase/functions /tmp/supabase-functions-aside
+  npx supabase start
+  # ...do your testing (see "Bootstrapping the first admin" below)...
+  npx supabase stop
+  mv /tmp/supabase-functions-aside supabase/functions
+  ```
+  This is a stopgap, not a workflow — until #42 is fixed, none of the Edge
+  Functions (`resolveMyAccess`, `inviteUser`, `updateUserRoles`, `revokeUser`,
+  `listUsers`, `setDistributionListMembership`, `createJobRecord`, `getJobRecord`,
+  `listJobRecords`) can be exercised through Docker, which in turn means **the web and
+  mobile apps' sign-in flow can't complete locally** (`useAuth.ts` calls
+  `resolveMyAccess` right after auth) — so today, the fastest way to see a real local
+  demo end-to-end is to watch #42 land.
+- **Google sign-in isn't wired for local dev.** `supabase/config.toml`'s
+  `[auth.external.google]` block is `enabled = false`, with a comment noting no real
+  Google OAuth client is provisioned (out of scope for tickets #18/#19). Unlike the old
+  Firebase Auth emulator — which used Firebase's own built-in OAuth client, so the web
+  app's "Sign in with Google" button worked with zero extra setup — Supabase's Google
+  provider always requires you to register your own Google Cloud OAuth client, even
+  locally. That hasn't been done in this repo yet. Both `apps/web/src/auth/SignIn.tsx`
+  and the mobile equivalent only expose a Google button, so there's currently no
+  UI-driven way to sign in locally at all (email/password auth is enabled server-side —
+  `supabase/config.toml`'s `[auth.email]` — but no UI is wired to it).
+- **The mobile weekly-list screen still calls the old Firebase callable.**
+  `apps/mobile/src/jobRecords/api.ts`'s `listMyWeeklyJobRecordsFn` still uses
+  `httpsCallable` from `firebase/functions` — only `createJobRecord` (ticket #21) has
+  been ported onto `supabase.functions.invoke()` so far. Submitting a job record from
+  the mobile app is otherwise ported and, per #21, calls the real `createJobRecord` Edge
+  Function — once #42 is fixed, that part of the demo should work.
+- **Photos never leave the phone.** Unchanged from before —
+  `apps/mobile/src/jobRecords/storage.ts` still stores the camera roll's local `file://`
+  URI directly; there's no Storage upload wired up yet (tracked as #29, open).
+- **Address verification, the nightly discrepancy email, and the nightly state export
+  are still Firebase/Firestore-only** — `functions/src/jobRecords`'s
+  `NotConfiguredAddressVerifier`, and `functions/src/notifications`'s
+  `NotConfiguredEmailSender` / `firestoreStateExportRepository.ts`, haven't been ported
+  onto the Supabase stack at all (tracked as #27 and #28, both open). This local-Supabase
+  demo path doesn't exercise them either way.
 
 ## Bootstrapping the first admin
 
-`inviteUser` (and every other admin-only callable) requires the caller to already be
-an Application Administrator (`requireApplicationAdministrator` in
-`functions/src/access/accessService.ts`) — there's no self-serve first-admin flow.
-The first user has to be written directly into Firestore's `users` collection.
+Every admin-only Edge Function (`inviteUser`, `updateUserRoles`, etc., once #42 is fixed)
+calls `resolveAccess`/`requireApplicationAdministrator`
+(`functions/src/access/accessService.ts`, unchanged) — there's no self-serve first-admin
+flow. The `users` table
+(`supabase/migrations/20260814210000_users_table.sql`) has row-level security enabled
+with **zero policies for `anon`/`authenticated`**, which denies those roles all access by
+default — the Postgres/PostgREST analog of the old Firestore-rules deny-all. Only a
+`service_role`-authenticated request bypasses RLS, exactly the way
+`supabase/functions/_shared/postgresUserRepository.ts`'s `serviceRoleClient()` does it
+from inside an Edge Function — this is the direct replacement for the old
+`Authorization: Bearer owner` emulator trick.
 
-Document shape (`users/<normalized-email>`):
+`supabase start` prints (and `supabase status` re-prints) the local `API_URL` and
+`SERVICE_ROLE_KEY` — for an unmodified `supabase/config.toml`, these are the well-known,
+publicly documented local Supabase CLI demo values (identical across every default local
+project, not a secret — see the comment at the top of `supabase/seed.sql`):
 
-```json
-{
-  "email": "you@yourdomain.com",
-  "roles": ["applicationAdministrator"],
-  "active": true,
-  "invitedAt": "2026-01-01T00:00:00.000Z",
-  "updatedAt": "2026-01-01T00:00:00.000Z",
-  "onDistributionList": false
-}
+```
+API_URL=http://127.0.0.1:54321
+SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
 ```
 
-**Path A (emulator):** the emulator's REST API accepts an `Authorization: Bearer owner`
-header to bypass `firestore.rules` (which deny all direct client access — see
-[firestore.rules](../firestore.rules)):
+Insert the first admin directly via PostgREST, using the `users` table's actual
+snake_case columns (`supabase/migrations/20260814210000_users_table.sql` — not the
+camelCase `UserRecord` TS shape those columns get mapped to/from by
+`postgresUserRepository.ts`):
 
 ```bash
-curl -X PATCH \
-  "http://127.0.0.1:8080/v1/projects/liveoakv3-dev/databases/(default)/documents/users/you%40yourdomain.com" \
-  -H "Authorization: Bearer owner" -H "Content-Type: application/json" \
-  -d '{"fields": {
-    "email": {"stringValue": "you@yourdomain.com"},
-    "roles": {"arrayValue": {"values": [{"stringValue": "applicationAdministrator"}]}},
-    "active": {"booleanValue": true},
-    "invitedAt": {"stringValue": "2026-01-01T00:00:00.000Z"},
-    "updatedAt": {"stringValue": "2026-01-01T00:00:00.000Z"},
-    "onDistributionList": {"booleanValue": false}
-  }}'
+curl -X POST "$API_URL/rest/v1/users" \
+  -H "apikey: $SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Prefer: return=representation" \
+  -d '{
+    "email": "you@yourdomain.com",
+    "roles": ["applicationAdministrator"],
+    "active": true,
+    "on_distribution_list": false
+  }'
 ```
 
-Or use the Emulator UI's Firestore tab (`http://127.0.0.1:4000`) to add the document
-by hand — same shape, no curl needed.
+**Verified live** in this environment (Docker + `supabase@2.114.0`, stack started per the
+#42 workaround above): this returns the inserted row with `invited_at`/`updated_at`
+defaulted by the table, and a follow-up `GET
+$API_URL/rest/v1/users?email=eq.you%40yourdomain.com` with the same headers returns it
+back. The same request with the `anon` key instead of `service_role` gets a 401 —
+```json
+{"code":"42501","message":"permission denied for table users", ...}
+```
+— confirming the RLS-deny-all + no-anon-grants setup actually holds.
 
-**Path B (live project):** `Authorization: Bearer owner` is emulator-only and won't
-work against a real project — `firestore.rules` denies it. Use the Firebase Console
-(Firestore Database → Start collection `users` → document ID = the normalized email)
-instead; Console writes go through your Google account's IAM role on the project, not
-the client security rules.
+If you'd rather go straight through Postgres: `supabase status` also prints `DB_URL`
+(`postgresql://postgres:postgres@127.0.0.1:54322/postgres` by default), so
+`psql "$DB_URL" -c "insert into users (email, roles, active, on_distribution_list) values ('you@yourdomain.com', '{applicationAdministrator}', true, false);"`
+is an equally valid alternative — not separately verified here, but it's the same table,
+same columns, and bypasses PostgREST/RLS entirely by using the Postgres superuser role
+the local stack seeds.
 
-Once that document exists, sign in as that email and you're an Application
-Administrator — invite everyone else from the Manage Users screen from there.
+Once that row exists, once #42 is fixed and Google sign-in is configured (see
+[Known gaps](#known-gaps-worth-disclosing-before-the-demo)), signing in as that email
+resolves as an Application Administrator via `resolveMyAccess` — invite everyone else
+from the Manage Users screen from there, same as the Firebase-era flow.
 
 ## Web app
 
-### Path A — against the emulator suite
-
 ```bash
-# from the repo root, in separate terminals:
-npm run build --workspace=packages/shared   # functions/lib needs a compiled shared package to load at runtime
-npm run build --workspace=functions         # firebase.json has no predeploy hook — lib/ has to exist already
-npx firebase-tools emulators:start --only auth,firestore,functions
+# from the repo root, after the workaround in "Known gaps" above:
+npx supabase start
 
-npm run dev --workspace=apps/web            # vite dev server, defaults to localhost:5173
+npm run dev --workspace=apps/web   # vite dev server, defaults to localhost:5173
 ```
 
-`apps/web/src/firebase.ts` only calls `connectAuthEmulator`/`connectFunctionsEmulator`
-when `import.meta.env.DEV` is true (i.e. `vite dev`, not `vite build`) — no extra flag
-needed. It also defaults `VITE_FIREBASE_PROJECT_ID` to `liveoakv3-dev` (the project ID
-in `.firebaserc`) when no `.env` is present, so this works with zero configuration.
+`apps/web/src/supabase.ts` defaults `VITE_SUPABASE_URL` to `http://127.0.0.1:54321`,
+matching `supabase/config.toml`'s `[api] port`, so no `.env` is needed for the URL.
+**`VITE_SUPABASE_ANON_KEY` has no safe default, though** — unlike the Firebase emulator
+(which accepted any placeholder API key), Supabase validates the anon key against the
+project's real JWT signing key even locally, so `apps/web/src/supabase.ts` defaults it to
+`""` and auth calls will fail without a real one. Set it from `supabase status`'s
+`ANON_KEY` (the local demo value is the well-known one from `supabase/seed.sql`'s
+comment, `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0`)
+in `apps/web/.env`:
+
+```
+VITE_SUPABASE_ANON_KEY=<ANON_KEY from supabase status>
+```
 
 ```mermaid
 sequenceDiagram
     participant You
-    participant Shared as packages/shared
-    participant Fn as functions
-    participant Emu as Firebase Emulators
+    participant Docker as Docker (supabase start)
     participant Web as apps/web (vite dev)
 
-    You->>Shared: npm run build --workspace=packages/shared
-    You->>Fn: npm run build --workspace=functions
-    You->>Emu: npx firebase-tools emulators:start --only auth,firestore,functions
+    You->>Docker: npx supabase start
     You->>Web: npm run dev --workspace=apps/web
-    Web->>Emu: connects automatically (DEV mode)
-    You->>Emu: bootstrap first admin (curl or Emulator UI)
-    You->>Web: sign in as that admin, invite everyone else
-```
-
-### Path B — against a live project
-
-1. `firebase use --add` to point `.firebaserc` at the real project (or add a second
-   alias alongside `default`).
-2. In the Firebase Console, add a Web app to the project and copy its config values.
-3. Create `apps/web/.env.production` (there's no `.env.example` in the repo to copy —
-   these are the exact 4 vars `apps/web/src/firebase.ts` reads):
-   ```
-   VITE_FIREBASE_API_KEY=<from console>
-   VITE_FIREBASE_AUTH_DOMAIN=<project-id>.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=<project-id>
-   VITE_WORKSPACE_DOMAIN=yourdomain.com
-   ```
-4. In Firebase Console → Authentication → Sign-in method, enable Google, and add your
-   demo domain under Authorized domains if it isn't the default Hosting domain.
-5. Set the matching server-side value so `resolveAccess` actually enforces the same
-   domain (`VITE_WORKSPACE_DOMAIN` above is a UX hint only): create
-   `functions/.env.<project-id>` with `ALLOWED_WORKSPACE_DOMAIN=yourdomain.com` —
-   Firebase Functions v2 loads `.env`/`.env.<project-id>` files from the `functions/`
-   directory automatically on deploy.
-6. Deploy:
-   ```bash
-   npm run build --workspace=packages/shared
-   npm run build --workspace=functions
-   npm run build --workspace=apps/web
-   npx firebase-tools deploy --only firestore,functions,hosting
-   ```
-7. Bootstrap the first admin (see above), then visit the Hosting URL Firebase prints.
-
-```mermaid
-flowchart TD
-    S1["1. firebase use --add\npoint .firebaserc at the real project"] --> S2["2. Add a Web app in the\nFirebase Console, copy config"]
-    S2 --> S3["3. Create apps/web/.env.production\nwith the 4 VITE_ vars"]
-    S3 --> S4["4. Enable Google sign-in +\nauthorized domains"]
-    S4 --> S5["5. Set ALLOWED_WORKSPACE_DOMAIN in\nfunctions/.env.&lt;project-id&gt;"]
-    S5 --> S6["6. Build shared, functions, web,\nthen firebase-tools deploy"]
-    S6 --> S7["7. Bootstrap first admin,\nvisit the Hosting URL"]
+    Web->>Docker: REST/Auth calls via VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
+    You->>Docker: bootstrap first admin (service_role curl or psql)
+    You->>Web: sign in — blocked locally today by #42 + missing Google OAuth client
 ```
 
 ## Mobile app
 
-### Path A — against the emulator suite
-
-`apps/mobile/src/firebase.ts` connects to the emulators whenever `__DEV__` is true,
-which is always the case when running through `expo start` (there's no release build
-configured in this repo — see prerequisites). The emulator host defaults to
-`localhost`, which **will not work from a physical phone** — a phone can't resolve
-your laptop's `localhost`. Set it explicitly:
+Same idea, `EXPO_PUBLIC_*` names this time (`apps/mobile/src/supabase.ts`):
 
 ```bash
-# find your machine's LAN IP first (ipconfig / ifconfig)
-EXPO_PUBLIC_FIREBASE_EMULATOR_HOST=192.168.1.23 npx expo start --clear
+npx expo start --clear
 ```
 
-Or put it in `apps/mobile/.env`. Same rule as the web app: no other Firebase env vars
-are required against the emulator (`apps/mobile/src/firebase.ts` defaults
-`EXPO_PUBLIC_FIREBASE_PROJECT_ID` to `liveoakv3-dev` too). Google Sign-In still needs
-real OAuth client IDs even against the emulator (Auth emulator federated sign-in still
-goes through Google's real consent screen for Expo's `expo-auth-session` flow) — see
-the client-ID setup below.
+`EXPO_PUBLIC_SUPABASE_URL` also defaults to `http://127.0.0.1:54321`
+(`supabase/config.toml`'s `[api] port`), and `127.0.0.1` **will not work from a physical
+phone** — same caveat as the old Firebase emulator setup, a loopback address always means
+"this device," so a phone resolves it to itself, not your laptop. Set it explicitly,
+e.g. in `apps/mobile/.env`:
+
+```
+# find your machine's LAN IP first (ipconfig / ifconfig)
+EXPO_PUBLIC_SUPABASE_URL=http://192.168.1.23:54321
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<ANON_KEY from supabase status>
+```
+
+`EXPO_PUBLIC_SUPABASE_ANON_KEY` has the same no-safe-default caveat as the web app's
+`VITE_SUPABASE_ANON_KEY` above. A simulator running on the same machine can keep the
+`127.0.0.1` default for the URL.
 
 Scan the QR code with Expo Go (physical phone) or press `i`/`a` in the Expo CLI for a
-simulator.
-
-### Against a live project
-
-Same `.env` values as the web app's `VITE_*` set, under the `EXPO_PUBLIC_*` names
-`apps/mobile/src/firebase.ts` and `apps/mobile/src/auth/useAuth.ts` actually read:
-
-```
-EXPO_PUBLIC_FIREBASE_API_KEY=<from console>
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=<project-id>.firebaseapp.com
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=<project-id>
-EXPO_PUBLIC_WORKSPACE_DOMAIN=yourdomain.com
-EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<see below>
-EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<see below, optional for Expo Go>
-EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=<see below, optional for Expo Go>
-```
-
-**The real limitation:** `apps/mobile/src/firebase.ts` connects to the emulators
-whenever `__DEV__` is true, and `__DEV__` is true for the entire lifetime of an Expo
-Go / `expo start` session — there is no code path today that runs the Metro dev
-bundler against a live Firebase project. To point the mobile app at a live backend
-you currently have to either:
-
-- temporarily comment out the `if (__DEV__) { connectAuthEmulator(...); ... }` block
-  in `apps/mobile/src/firebase.ts` for the demo, or
-- set up an EAS build (not configured in this repo — would need a new `eas.json` and
-  an Expo account) to produce a real release binary, where `__DEV__` is `false`.
-
-For a one-off demo, commenting out that block locally (don't commit it) is the
-faster path.
-
-**Google OAuth client IDs**: `expo-auth-session`'s `Google.useIdTokenAuthRequest`
-needs a Web OAuth client registered in Google Cloud Console under the same project
-(Firebase projects are GCP projects) — APIs & Services → Credentials → Create OAuth
-client ID → Web application, with the redirect URI `expo start` prints in its console
-output added to the client's authorized redirect URIs. That client's ID is
-`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. iOS/Android-specific client IDs are only needed
-for a standalone EAS build, not for Expo Go — leave them unset for a Path A/B demo
-through Expo Go. Expo's own
-[Google authentication guide](https://docs.expo.dev/guides/authentication/#google)
-covers the exact console click-path, which changes often enough that it's not worth
-freezing into this doc.
+simulator. As with the web app, signing in is blocked locally today by #42 and the
+missing Google OAuth client (see [Known gaps](#known-gaps-worth-disclosing-before-the-demo)).
