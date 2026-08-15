@@ -5,7 +5,8 @@
   },
   "imports": {
     "@supabase/supabase-js": "jsr:@supabase/supabase-js@2",
-    "@liveoakv3/shared": "../../packages/shared/src/index.ts"
+    "@liveoakv3/shared": "../../packages/shared/src/index.ts",
+    "postgres": "npm:postgres@3"
   },
   "unstable": ["sloppy-imports"]
 }

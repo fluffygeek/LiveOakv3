@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import postgres from "postgres";
 import { normalizeAddress } from "../../../packages/shared/src/address.ts";
 import type {
   AddressVerificationStatus,
@@ -11,6 +12,14 @@ import type {
 } from "../../../functions/src/jobRecords/jobRecordRepository.ts";
 
 const TABLE = "job_records";
+
+/**
+ * The `postgres` (postgres.js) tagged-template client type, inferred from its factory
+ * function rather than imported by name -- the npm package's runtime API (what this file
+ * actually depends on) is stable across versions in a way its exported type names aren't
+ * guaranteed to be.
+ */
+type DirectSql = ReturnType<typeof postgres>;
 
 /** Shape of a row in the `job_records` table (supabase/migrations/*_job_records_table.sql) --
  * snake_case columns, `duplicate` stored as jsonb, `photo_urls` as a native Postgres array. */
@@ -86,6 +95,49 @@ function toRow(record: JobRecord): JobRecordRow {
   };
 }
 
+// Columns that get overwritten by createWithDuplicateLinking's `updatedMatches` UPDATE --
+// every JobRecordRow column except the primary key, which appears only in the WHERE clause.
+const UPDATABLE_COLUMNS = [
+  "job_id",
+  "technician_email",
+  "address",
+  "verified_address",
+  "address_verification_status",
+  "work_code",
+  "footage",
+  "photo_urls",
+  "notes",
+  "submitted_at",
+  "created_at",
+  "timestamp_suspect",
+  "duplicate",
+  "discrepancy",
+  "discrepancy_reason",
+  "closed",
+  "pictures_downloaded",
+  "normalized_address_key",
+] as const satisfies readonly (keyof JobRecordRow)[];
+
+/**
+ * Lazily created and cached across requests handled by the same warm Deno isolate --
+ * mirrors postgresUserRepository.ts's `serviceRoleClient()` caching, but for a *direct*
+ * Postgres connection (`SUPABASE_DB_URL`) rather than the PostgREST-backed `SupabaseClient`
+ * (`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`). Only `createWithDuplicateLinking` needs this:
+ * see the class doc comment for why PostgREST can't do the job.
+ */
+let cachedDirectSql: DirectSql | undefined;
+
+function directSql(): DirectSql {
+  if (!cachedDirectSql) {
+    const dbUrl = Deno.env.get("SUPABASE_DB_URL");
+    if (!dbUrl) {
+      throw new Error("SUPABASE_DB_URL must be set");
+    }
+    cachedDirectSql = postgres(dbUrl);
+  }
+  return cachedDirectSql;
+}
+
 /**
  * Postgres adapter for the `job_records` table -- the Edge Function analog of
  * functions/src/jobRecords/firestoreJobRecordRepository.ts. Thin by design: business rules
@@ -93,22 +145,35 @@ function toRow(record: JobRecord): JobRecordRow {
  * jobRecordService.ts / jobRecordReviewService.ts, not here -- this class only translates
  * between `JobRecord` and `job_records` table rows.
  *
- * `createWithDuplicateLinking` is the one method that deliberately does NOT mirror
- * FirestoreJobRecordRepository's real behavior yet (ticket #21's scope explicitly excludes
- * duplicate detection -- that's #22's job): rather than running the "find candidate matches
- * within the window, row-lock, link" query, it always calls `buildRecord` with an empty
- * `matches` array (so every new record comes back with `noDuplicateLink()`, per
- * jobRecordService.ts's computeDuplicateLinks) and then does a plain INSERT of the
- * resulting record. This is NOT a no-op: it's the ONLY way createJobRecord persists a new
- * record (see jobRecordService.ts), so real persistence has to happen here for a Technician's
- * submission to actually show up in listJobRecords/getJobRecord. #22 replaces the empty-array
- * shortcut with a real "select matching rows within the 6-month window, `for update` to lock
- * them, then write everything in one transaction" implementation -- Postgres, unlike
- * Firestore, doesn't need a separate transaction API for that; it'll use a single
- * `client.rpc(...)` or a direct `pg` transaction.
+ * Every method except `createWithDuplicateLinking` goes through `client`, the
+ * PostgREST-backed `SupabaseClient` injected by the constructor (mirrors
+ * `PostgresUserRepository`). `createWithDuplicateLinking` is different: PostgREST's REST
+ * interface has no way to express `SELECT ... FOR UPDATE` row locking or a multi-statement
+ * transaction (each `.from(table)...` call is one stateless HTTP request), and this
+ * interface method's shape -- `buildRecord` is a TypeScript callback that must run
+ * *mid-transaction*, after the candidate matches are locked but before the new record is
+ * inserted -- can't be expressed as a `.rpc()` call to a stored procedure either, since a
+ * stored procedure can't call back into TS code partway through. So this method alone uses
+ * `sql`/`directSql()`, a real Postgres connection (via the `postgres` / postgres.js package,
+ * imported as `npm:postgres` -- see deno.json) with genuine `BEGIN`/`FOR UPDATE`/`COMMIT`
+ * semantics, connected via the direct Postgres connection string rather than the PostgREST
+ * URL. See that method's doc comment for the locking strategy itself.
  */
 export class PostgresJobRecordRepository implements JobRecordRepository {
-  constructor(private readonly client: SupabaseClient) {}
+  /**
+   * `directSqlOverride` lets tests point `createWithDuplicateLinking` at a specific Postgres
+   * connection (e.g. a local `supabase start` instance) without mutating `SUPABASE_DB_URL`.
+   * Production wiring (createJobRecord/index.ts) omits it, so the method falls back to the
+   * lazily-cached `directSql()` above.
+   */
+  constructor(
+    private readonly client: SupabaseClient,
+    private readonly directSqlOverride?: DirectSql,
+  ) {}
+
+  private sql(): DirectSql {
+    return this.directSqlOverride ?? directSql();
+  }
 
   async update(record: JobRecord): Promise<void> {
     const { error } = await this.client.from(TABLE).upsert(toRow(record));
@@ -177,27 +242,71 @@ export class PostgresJobRecordRepository implements JobRecordRepository {
     return (data as JobRecordRow[]).map(fromRow);
   }
 
+  /**
+   * Mirrors FirestoreJobRecordRepository.createWithDuplicateLinking's shape via a real
+   * Postgres transaction instead of `db.runTransaction`:
+   *
+   * 1. `pg_advisory_xact_lock(hashtext(normalizedAddress))` -- an advisory lock keyed on the
+   *    normalized address, held for the rest of the transaction (Postgres releases it
+   *    automatically on COMMIT/ROLLBACK). This is what makes the genuinely-new-address race
+   *    safe: when zero rows exist yet for this address, step 2's `FOR UPDATE` has nothing to
+   *    lock, so without a lock taken *before* the read, two concurrent transactions could
+   *    both SELECT zero matches and both decide they're the sole/primary record -- the exact
+   *    lost-update bug this method exists to prevent. Taking this lock first serializes
+   *    every createWithDuplicateLinking call for the same address: whichever transaction
+   *    loses the race blocks here until the winner commits (making its insert visible), so
+   *    its own SELECT below is then guaranteed to see it. `hashtext(...)::bigint` folds the
+   *    address into the single bigint key `pg_advisory_xact_lock` takes; a hash collision
+   *    between two different addresses would only cause unnecessary serialization between
+   *    them, not an incorrect result.
+   * 2. `SELECT ... FOR UPDATE` -- fetches candidate matches (same address, submitted on/after
+   *    `sinceIso`) and row-locks them, satisfying #22's acceptance criterion directly and
+   *    guarding against any other writer of these specific rows mid-transaction.
+   * 3. `buildRecord(matches)` runs the business logic (jobRecordService.ts's
+   *    computeDuplicateLinks) against the locked matches, entirely in TypeScript.
+   * 4. INSERT the new record and UPDATE every updated match, all inside the same transaction.
+   * 5. Returning from the `sql.begin` callback commits; throwing rolls back.
+   */
   async createWithDuplicateLinking(
-    _normalizedAddress: string,
-    _sinceIso: string,
+    normalizedAddress: string,
+    sinceIso: string,
     buildRecord: (matches: JobRecord[]) => DuplicateLinkingResult,
   ): Promise<JobRecord> {
-    // See the class doc comment: #21 intentionally skips the real candidate-matching query
-    // (#22's scope), always passing zero matches so `buildRecord` returns a record with
-    // `noDuplicateLink()` and an empty `updatedMatches`.
-    const { record, updatedMatches } = buildRecord([]);
+    const sql = this.sql();
 
-    const { error } = await this.client.from(TABLE).insert(toRow(record));
-    if (error) {
-      throw new Error(`Failed to create job record ${record.recordId}: ${error.message}`);
-    }
+    return await sql.begin(async (tx) => {
+      // See the call sites below: postgres.js's column-helper (`tx(row, ...columns)`) wants
+      // every value typed as plain JSON-compatible data; `DuplicateLink` is a named
+      // interface rather than an index-signature object, so TS rejects it unless it's
+      // re-wrapped with `tx.json(...)` first. The runtime write is the same jsonb value
+      // either way.
+      const insertableRow = (row: JobRecordRow): Record<string, unknown> => ({
+        ...row,
+        // deno-lint-ignore no-explicit-any
+        duplicate: tx.json(row.duplicate as any),
+      });
 
-    // Always empty today (see above), but honored generically in case a future caller of
-    // this interface method ever passes non-empty matches through some other path.
-    if (updatedMatches.length > 0) {
-      await this.updateMany(updatedMatches);
-    }
+      await tx`select pg_advisory_xact_lock(hashtext(${normalizedAddress})::bigint)`;
 
-    return record;
+      const rows = await tx<JobRecordRow[]>`
+        select * from job_records
+        where normalized_address_key = ${normalizedAddress} and submitted_at >= ${sinceIso}
+        for update
+      `;
+      const matches = rows.map(fromRow);
+      const { record, updatedMatches } = buildRecord(matches);
+
+      await tx`insert into job_records ${tx(insertableRow(toRow(record)))}`;
+
+      for (const updatedMatch of updatedMatches) {
+        const row = toRow(updatedMatch);
+        await tx`
+          update job_records set ${tx(insertableRow(row), ...UPDATABLE_COLUMNS)}
+          where record_id = ${row.record_id}
+        `;
+      }
+
+      return record;
+    });
   }
 }
