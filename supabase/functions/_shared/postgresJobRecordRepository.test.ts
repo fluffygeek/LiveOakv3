@@ -179,55 +179,13 @@ Deno.test("PostgresJobRecordRepository.listWithActiveDiscrepancy - returns only 
   assertEquals(results.map((r) => r.recordId), ["flagged"]);
 });
 
-Deno.test("PostgresJobRecordRepository.createWithDuplicateLinking - always calls buildRecord with zero matches (ticket #21 scope)", async () => {
-  const { client } = fakeClient([]);
-  const repo = new PostgresJobRecordRepository(client);
-  await repo.update(sampleRecord({ recordId: "existing", address: "123 Main St, Springfield" }));
-
-  let receivedMatches: JobRecord[] | undefined;
-  const newRecord = sampleRecord({ recordId: "new-record" });
-
-  const result = await repo.createWithDuplicateLinking(
-    "123 MAIN ST, SPRINGFIELD",
-    "2025-07-01T00:00:00.000Z",
-    (matches) => {
-      receivedMatches = matches;
-      return { record: newRecord, updatedMatches: [] };
-    },
-  );
-
-  assertEquals(receivedMatches, []);
-  assertEquals(result, newRecord);
-});
-
-Deno.test("PostgresJobRecordRepository.createWithDuplicateLinking - really persists the new record (not a no-op), visible via getById/list", async () => {
-  const { client } = fakeClient([]);
-  const repo = new PostgresJobRecordRepository(client);
-  const newRecord = sampleRecord({ recordId: "new-record", jobId: "DISPATCH-NEW" });
-
-  await repo.createWithDuplicateLinking("123 MAIN ST", "2025-07-01T00:00:00.000Z", () => ({
-    record: newRecord,
-    updatedMatches: [],
-  }));
-
-  assertEquals(await repo.getById("new-record"), newRecord);
-  assertEquals((await repo.list()).map((r) => r.recordId), ["new-record"]);
-});
-
-Deno.test("PostgresJobRecordRepository.createWithDuplicateLinking - also persists any updatedMatches buildRecord returns", async () => {
-  const { client } = fakeClient([]);
-  const repo = new PostgresJobRecordRepository(client);
-  await repo.update(sampleRecord({ recordId: "existing" }));
-  const newRecord = sampleRecord({ recordId: "new-record" });
-  const updatedExisting = sampleRecord({
-    recordId: "existing",
-    duplicate: { isDuplicate: true, linkedRecordIds: ["new-record"], isPrimary: true },
-  });
-
-  await repo.createWithDuplicateLinking("123 MAIN ST", "2025-07-01T00:00:00.000Z", () => ({
-    record: newRecord,
-    updatedMatches: [updatedExisting],
-  }));
-
-  assertEquals((await repo.getById("existing"))?.duplicate.isDuplicate, true);
-});
+// createWithDuplicateLinking is deliberately NOT covered by this file's fake-`SupabaseClient`
+// harness (unlike every other method above): ticket #21's placeholder implementation always
+// passed an empty `matches` array and wrote through the PostgREST-backed client alone, which
+// is what these fakeClient-based tests used to exercise. Ticket #22 replaced that with a real
+// Postgres transaction (`BEGIN` / `SELECT ... FOR UPDATE` / advisory lock / `COMMIT`) that the
+// fake here can't stand in for -- see the class doc comment on `createWithDuplicateLinking` in
+// postgresJobRecordRepository.ts. Its behavior (including the row-locking and concurrency
+// guarantees) is covered by jobRecordDuplicateLinking.contract.test.ts instead, run against a
+// real local Postgres instance and, in parallel, against InMemoryJobRecordRepository for
+// parity.
