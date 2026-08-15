@@ -1,16 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
-import {
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithCredential,
-  signOut as firebaseSignOut,
-  type User,
-} from "firebase/auth";
-import { httpsCallable } from "firebase/functions";
+import type { User } from "@supabase/supabase-js";
 import type { Role } from "@liveoakv3/shared";
-import { auth, functions } from "../firebase";
+import { supabase } from "../supabase";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -41,28 +34,43 @@ export function useAuth() {
 
   useEffect(() => {
     if (response?.type === "success" && response.params.id_token) {
-      const credential = GoogleAuthProvider.credential(response.params.id_token);
-      void signInWithCredential(auth, credential);
+      // Exchange the Google ID token expo-auth-session obtained for a Supabase session —
+      // the mobile-specific analogue of signInWithCredential(auth, credential) against
+      // Firebase. resolveMyAccess (invoked below) still authoritatively enforces the
+      // Workspace domain server-side.
+      void supabase.auth.signInWithIdToken({
+        provider: "google",
+        token: response.params.id_token,
+      });
     }
   }, [response]);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (user) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const user = session?.user ?? null;
       if (!user) {
         setState({ status: "signedOut" });
         return;
       }
       try {
-        const resolveMyAccess = httpsCallable<void, ResolvedAccess>(
-          functions,
+        // resolveMyAccess (supabase/functions/resolveMyAccess) resolves the caller's
+        // roles server-side — same isAllowedWorkspaceDomain + allowlist enforcement the
+        // Firebase callable of the same name provided, ported unchanged.
+        const { data, error } = await supabase.functions.invoke<ResolvedAccess>(
           "resolveMyAccess",
         );
-        const result = await resolveMyAccess();
-        setState({ status: "signedIn", user, access: result.data });
+        if (error || !data) {
+          throw error ?? new Error("resolveMyAccess returned no data");
+        }
+        setState({ status: "signedIn", user, access: data });
       } catch {
         setState({ status: "denied" });
       }
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = useCallback(() => {
@@ -70,7 +78,7 @@ export function useAuth() {
   }, [promptAsync]);
 
   const signOut = useCallback(async () => {
-    await firebaseSignOut(auth);
+    await supabase.auth.signOut();
   }, []);
 
   return { state, signIn, signOut };
