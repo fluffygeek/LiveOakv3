@@ -11,8 +11,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "typecheck:edge-functions": "cd supabase/functions && deno check _shared/*.ts ping/index.ts scheduled-ping/index.ts resolveMyAccess/*.ts inviteUser/*.ts updateUserRoles/*.ts revokeUser/*.ts listUsers/*.ts setDistributionListMembership/*.ts createJobRecord/*.ts getJobRecord/*.ts listJobRecords/*.ts listMyWeeklyJobRecords/*.ts",
-    "test:edge-functions": "cd supabase/functions && deno test --allow-env --allow-net _shared/ resolveMyAccess/ inviteUser/ updateUserRoles/ revokeUser/ listUsers/ setDistributionListMembership/ createJobRecord/ getJobRecord/ listJobRecords/ listMyWeeklyJobRecords/"
+    "typecheck:edge-functions": "cd supabase/functions && deno check _shared/*.ts ping/index.ts scheduled-ping/index.ts resolveMyAccess/*.ts inviteUser/*.ts updateUserRoles/*.ts revokeUser/*.ts listUsers/*.ts setDistributionListMembership/*.ts createJobRecord/*.ts getJobRecord/*.ts listJobRecords/*.ts listMyWeeklyJobRecords/*.ts nightlyStateExport/*.ts",
+    "test:edge-functions": "cd supabase/functions && deno test --allow-env --allow-net _shared/ resolveMyAccess/ inviteUser/ updateUserRoles/ revokeUser/ listUsers/ setDistributionListMembership/ createJobRecord/ getJobRecord/ listJobRecords/ listMyWeeklyJobRecords/ nightlyStateExport/"
   },
   "devDependencies": {
     "supabase": "^2.114.0",
