@@ -1,7 +1,7 @@
 {
   "tasks": {
-    "check": "deno check _shared/*.ts ping/index.ts scheduled-ping/index.ts resolveMyAccess/*.ts",
-    "test": "deno test --allow-env --allow-net _shared/ resolveMyAccess/"
+    "check": "deno check _shared/*.ts ping/index.ts scheduled-ping/index.ts resolveMyAccess/*.ts inviteUser/*.ts updateUserRoles/*.ts revokeUser/*.ts listUsers/*.ts setDistributionListMembership/*.ts",
+    "test": "deno test --allow-env --allow-net _shared/ resolveMyAccess/ inviteUser/ updateUserRoles/ revokeUser/ listUsers/ setDistributionListMembership/"
   },
   "imports": {
     "@supabase/supabase-js": "jsr:@supabase/supabase-js@2",

@@ -1,25 +1,41 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { httpsCallable } from "firebase/functions";
 import { isDistributionListEligibleRole, ROLES, type Role, type UserRecord } from "@liveoakv3/shared";
-import { functions } from "../firebase";
+import { supabase } from "../supabase";
 
-const listUsersFn = httpsCallable<void, UserRecord[]>(functions, "listUsers");
-const inviteUserFn = httpsCallable<{ email: string; roles: Role[] }, UserRecord>(
-  functions,
-  "inviteUser",
-);
-const updateUserRolesFn = httpsCallable<
-  { email: string; roles: Role[] },
-  UserRecord
->(functions, "updateUserRoles");
-const revokeUserFn = httpsCallable<{ email: string }, { revoked: boolean }>(
-  functions,
-  "revokeUser",
-);
-const setDistributionListMembershipFn = httpsCallable<
-  { email: string; onDistributionList: boolean },
-  UserRecord
->(functions, "setDistributionListMembership");
+/**
+ * Invokes a `supabase.functions.invoke` Edge Function call and unwraps its `{ data, error }`
+ * result into a resolved value or a thrown error — the same unwrapping pattern
+ * apps/web/src/auth/useAuth.ts uses for `resolveMyAccess`, factored here since every call
+ * site below (listUsers, inviteUser, updateUserRoles, revokeUser,
+ * setDistributionListMembership) needs it identically.
+ */
+async function invoke<TResult>(
+  name: string,
+  body?: Record<string, unknown>,
+): Promise<TResult> {
+  const { data, error } = await supabase.functions.invoke<TResult>(name, {
+    body,
+  });
+  if (error) {
+    throw error;
+  }
+  if (data === null || data === undefined) {
+    throw new Error(`${name} returned no data`);
+  }
+  return data;
+}
+
+const listUsersFn = () => invoke<UserRecord[]>("listUsers");
+const inviteUserFn = (body: { email: string; roles: Role[] }) =>
+  invoke<UserRecord>("inviteUser", body);
+const updateUserRolesFn = (body: { email: string; roles: Role[] }) =>
+  invoke<UserRecord>("updateUserRoles", body);
+const revokeUserFn = (body: { email: string }) =>
+  invoke<{ revoked: boolean }>("revokeUser", body);
+const setDistributionListMembershipFn = (body: {
+  email: string;
+  onDistributionList: boolean;
+}) => invoke<UserRecord>("setDistributionListMembership", body);
 
 export function ManageUsersScreen() {
   const [users, setUsers] = useState<UserRecord[]>([]);
@@ -33,7 +49,7 @@ export function ManageUsersScreen() {
     setError(null);
     try {
       const result = await listUsersFn();
-      setUsers(result.data);
+      setUsers(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load users");
     } finally {
