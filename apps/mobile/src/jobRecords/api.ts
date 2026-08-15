@@ -1,6 +1,4 @@
-import { httpsCallable } from "firebase/functions";
 import type { JobRecord } from "@liveoakv3/shared";
-import { functions } from "../firebase";
 import { supabase } from "../supabase";
 import type { JobRecordSubmission } from "./storage";
 
@@ -32,12 +30,23 @@ export interface WeeklyList {
   records: JobRecord[];
 }
 
-const listMyWeeklyJobRecordsFn = httpsCallable<{ weekOffset: number }, WeeklyList>(
-  functions,
-  "listMyWeeklyJobRecords",
-);
-
+/**
+ * Fetches the calling Technician's own Job Record submissions for the requested week via the
+ * listMyWeeklyJobRecords Edge Function (ticket #26) — replaces the old
+ * httpsCallable(functions, "listMyWeeklyJobRecords") call now that listMyWeeklyJobRecords is
+ * ported onto the Edge-Function transport (supabase/functions/listMyWeeklyJobRecords). Unwraps
+ * the `{ data, error }` result the same way `submitJobRecord` above does.
+ */
 export async function getMyWeeklyJobRecords(weekOffset: number): Promise<WeeklyList> {
-  const result = await listMyWeeklyJobRecordsFn({ weekOffset });
-  return result.data;
+  const { data, error } = await supabase.functions.invoke<WeeklyList>(
+    "listMyWeeklyJobRecords",
+    { body: { weekOffset } },
+  );
+  if (error) {
+    throw error;
+  }
+  if (!data) {
+    throw new Error("listMyWeeklyJobRecords returned no data");
+  }
+  return data;
 }
