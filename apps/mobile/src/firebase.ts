@@ -1,14 +1,12 @@
 import { initializeApp } from "firebase/app";
-import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
-
-// @firebase/auth ^1.13 auto-detects React Native (via the "react-native"
-// package export condition) and persists to AsyncStorage automatically —
-// no more manual initializeAuth()/getReactNativePersistence() wiring.
-// @react-native-async-storage/async-storage is an optional peer dep for this.
 
 // Placeholder values for local development against the emulator suite.
 // Replace via EXPO_PUBLIC_* env vars once a real Firebase project exists.
+//
+// Sign-in and access resolution moved to Supabase Auth (see ./supabase.ts and
+// ./auth/useAuth.ts, ticket #19) — this module now only backs the Cloud Functions
+// callables that haven't been ported to Edge Functions yet (jobRecords/api.ts).
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? "demo-api-key",
   authDomain:
@@ -17,7 +15,6 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
 export const functions = getFunctions(app);
 
 // localhost works for a simulator/emulator; a physical device needs the
@@ -25,8 +22,5 @@ export const functions = getFunctions(app);
 const emulatorHost = process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST ?? "localhost";
 
 if (__DEV__) {
-  connectAuthEmulator(auth, `http://${emulatorHost}:9099`, {
-    disableWarnings: true,
-  });
   connectFunctionsEmulator(functions, emulatorHost, 5001);
 }
