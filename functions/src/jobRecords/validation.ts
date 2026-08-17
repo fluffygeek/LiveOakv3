@@ -1,6 +1,6 @@
-import { InvalidArgumentError } from "../access/errors.js";
-import type { EditableJobRecordPatch } from "./jobRecordReviewService.js";
-import type { CreateJobRecordInput } from "./jobRecordService.js";
+import { InvalidArgumentError } from "../access/errors.ts";
+import type { EditableJobRecordPatch } from "./jobRecordReviewService.ts";
+import type { CreateJobRecordInput } from "./jobRecordService.ts";
 
 function parseString(value: unknown, field: string): string {
   if (typeof value !== "string") {

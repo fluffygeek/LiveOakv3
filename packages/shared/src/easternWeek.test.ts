@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { easternWeekWindow } from "./easternWeek.js";
+import { easternWeekWindow } from "./easternWeek.ts";
 
 describe("easternWeekWindow", () => {
   it("returns the Sun-Sat Eastern window (EST, UTC-5) containing a mid-week instant", () => {

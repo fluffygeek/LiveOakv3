@@ -1,5 +1,5 @@
 import type { AuditLogEntry } from "@liveoakv3/shared";
-import type { AuditLogRepository } from "./auditLogRepository.js";
+import type { AuditLogRepository } from "./auditLogRepository.ts";
 
 /** Test double — never used by production code. */
 export class InMemoryAuditLogRepository implements AuditLogRepository {

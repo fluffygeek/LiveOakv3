@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { noDuplicateLink, type JobRecord } from "@liveoakv3/shared";
-import { InMemoryJobRecordRepository } from "../jobRecords/inMemoryJobRecordRepository.js";
-import { InMemoryStateExportRepository } from "./inMemoryStateExportRepository.js";
-import { generateStateExport, groupJobRecordsByState } from "./stateExportService.js";
+import { InMemoryJobRecordRepository } from "../jobRecords/inMemoryJobRecordRepository.ts";
+import { InMemoryStateExportRepository } from "./inMemoryStateExportRepository.ts";
+import { generateStateExport, groupJobRecordsByState } from "./stateExportService.ts";
 
 const NOW = () => "2026-02-01T03:00:00.000Z";
 const GENERATE_ID = () => "run-1";

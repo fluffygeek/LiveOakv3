@@ -1,17 +1,17 @@
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { FirestoreJobRecordRepository } from "./jobRecords/firestoreJobRecordRepository.js";
-import { sendDiscrepancyEmail } from "./notifications/discrepancyEmailService.js";
-import { NotConfiguredEmailSender } from "./notifications/notConfiguredEmailSender.js";
-import { generateStateExport } from "./notifications/stateExportService.js";
-import { FirestoreStateExportRepository } from "./notifications/firestoreStateExportRepository.js";
-import { repository } from "./callableHandler.js";
+import { FirestoreJobRecordRepository } from "./jobRecords/firestoreJobRecordRepository.ts";
+import { sendDiscrepancyEmail } from "./notifications/discrepancyEmailService.ts";
+import { NotConfiguredEmailSender } from "./notifications/notConfiguredEmailSender.ts";
+import { generateStateExport } from "./notifications/stateExportService.ts";
+import { FirestoreStateExportRepository } from "./notifications/firestoreStateExportRepository.ts";
+import { repository } from "./callableHandler.ts";
 
 initializeApp();
 
-export * from "./access/handlers.js";
-export * from "./jobRecords/handlers.js";
+export * from "./access/handlers.ts";
+export * from "./jobRecords/handlers.ts";
 
 function discrepancyEmailDeps() {
   const db = getFirestore();

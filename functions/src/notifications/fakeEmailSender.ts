@@ -1,4 +1,4 @@
-import type { EmailMessage, EmailSender } from "./emailSender.js";
+import type { EmailMessage, EmailSender } from "./emailSender.ts";
 
 /** Test double — captures every send() call for assertions. Never used by production code. */
 export class FakeEmailSender implements EmailSender {

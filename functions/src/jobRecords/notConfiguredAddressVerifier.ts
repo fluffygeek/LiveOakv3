@@ -1,4 +1,4 @@
-import type { AddressVerificationResult, AddressVerifier } from "./addressVerifier.js";
+import type { AddressVerificationResult, AddressVerifier } from "./addressVerifier.ts";
 
 /**
  * Placeholder pending a real vendor integration (ADR-0002 shortlists Smarty,

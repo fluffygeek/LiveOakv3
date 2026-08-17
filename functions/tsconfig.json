@@ -5,7 +5,9 @@
     "moduleResolution": "Node",
     "outDir": "lib",
     "rootDir": "src",
-    "types": ["node"]
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
   },
   "include": ["src"]
 }

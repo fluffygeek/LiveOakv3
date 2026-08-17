@@ -1,7 +1,7 @@
 import { isDistributionListEligibleRole, type JobRecord, type UserRecord } from "@liveoakv3/shared";
-import type { UserRepository } from "../access/userRepository.js";
-import type { JobRecordRepository } from "../jobRecords/jobRecordRepository.js";
-import type { EmailSender } from "./emailSender.js";
+import type { UserRepository } from "../access/userRepository.ts";
+import type { JobRecordRepository } from "../jobRecords/jobRecordRepository.ts";
+import type { EmailSender } from "./emailSender.ts";
 
 export interface DiscrepancyEmailDeps {
   jobRecordRepo: JobRecordRepository;

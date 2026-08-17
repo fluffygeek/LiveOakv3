@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { noDuplicateLink, type JobRecord, type UserRecord } from "@liveoakv3/shared";
-import { InMemoryUserRepository } from "../access/inMemoryUserRepository.js";
-import { InMemoryJobRecordRepository } from "../jobRecords/inMemoryJobRecordRepository.js";
-import { FakeEmailSender } from "./fakeEmailSender.js";
-import { getDistributionListRecipients, sendDiscrepancyEmail } from "./discrepancyEmailService.js";
+import { InMemoryUserRepository } from "../access/inMemoryUserRepository.ts";
+import { InMemoryJobRecordRepository } from "../jobRecords/inMemoryJobRecordRepository.ts";
+import { FakeEmailSender } from "./fakeEmailSender.ts";
+import { getDistributionListRecipients, sendDiscrepancyEmail } from "./discrepancyEmailService.ts";
 
 const NOW = "2026-02-01T02:00:00.000Z";
 

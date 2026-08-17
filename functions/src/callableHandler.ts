@@ -1,6 +1,6 @@
 import { getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
-import { resolveAccess, type ResolvedAccess } from "./access/accessService.js";
+import { resolveAccess, type ResolvedAccess } from "./access/accessService.ts";
 import {
   AccessDeniedError,
   DiscrepancyActiveError,
@@ -11,8 +11,8 @@ import {
   NotAllowlistedError,
   NotDuplicateError,
   UserNotFoundError,
-} from "./access/errors.js";
-import { FirestoreUserRepository } from "./access/firestoreUserRepository.js";
+} from "./access/errors.ts";
+import { FirestoreUserRepository } from "./access/firestoreUserRepository.ts";
 
 // Placeholder until a real Workspace domain is configured for deployment.
 const ALLOWED_WORKSPACE_DOMAIN = process.env.ALLOWED_WORKSPACE_DOMAIN ?? "example.com";

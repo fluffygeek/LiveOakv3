@@ -1,5 +1,5 @@
 import type { UserRecord } from "@liveoakv3/shared";
-import type { UserRepository } from "./userRepository.js";
+import type { UserRepository } from "./userRepository.ts";
 
 /** Test double — never used by production code. */
 export class InMemoryUserRepository implements UserRepository {

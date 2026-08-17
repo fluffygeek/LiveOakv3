@@ -1,4 +1,4 @@
-import type { AddressVerificationResult, AddressVerifier } from "./addressVerifier.js";
+import type { AddressVerificationResult, AddressVerifier } from "./addressVerifier.ts";
 
 /** Test double — never used by production code. */
 export class FakeAddressVerifier implements AddressVerifier {

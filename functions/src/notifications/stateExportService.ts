@@ -1,6 +1,6 @@
 import { extractStateCode, type JobRecord } from "@liveoakv3/shared";
-import type { JobRecordRepository } from "../jobRecords/jobRecordRepository.js";
-import type { StateExportRepository } from "./stateExportRepository.js";
+import type { JobRecordRepository } from "../jobRecords/jobRecordRepository.ts";
+import type { StateExportRepository } from "./stateExportRepository.ts";
 
 const UNKNOWN_STATE = "UNKNOWN";
 

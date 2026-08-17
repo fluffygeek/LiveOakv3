@@ -11,8 +11,8 @@ import {
   NotAllowlistedError,
   NotDuplicateError,
   UserNotFoundError,
-} from "./access/errors.js";
-import { defineCallable, toHttpsError } from "./callableHandler.js";
+} from "./access/errors.ts";
+import { defineCallable, toHttpsError } from "./callableHandler.ts";
 
 const { getUserMock } = vi.hoisted(() => ({ getUserMock: vi.fn() }));
 

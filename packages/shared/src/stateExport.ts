@@ -1,4 +1,4 @@
-import type { JobRecord } from "./jobRecord.js";
+import type { JobRecord } from "./jobRecord.ts";
 
 /**
  * One state's slice of a nightly state-organized export run — persisted as

@@ -1,5 +1,5 @@
 import { isRole, type Role } from "@liveoakv3/shared";
-import { InvalidArgumentError } from "./errors.js";
+import { InvalidArgumentError } from "./errors.ts";
 
 /** Validates untyped callable-function input at the boundary — casts alone don't check the actual runtime value. */
 export function parseEmail(value: unknown): string {

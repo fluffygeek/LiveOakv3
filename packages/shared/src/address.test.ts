@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeAddress } from "./address.js";
+import { normalizeAddress } from "./address.ts";
 
 describe("normalizeAddress", () => {
   it("uppercases the address", () => {

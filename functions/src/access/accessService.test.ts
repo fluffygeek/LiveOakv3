@@ -7,8 +7,8 @@ import {
   LastAdministratorError,
   NotAllowlistedError,
   UserNotFoundError,
-} from "./errors.js";
-import { InMemoryUserRepository } from "./inMemoryUserRepository.js";
+} from "./errors.ts";
+import { InMemoryUserRepository } from "./inMemoryUserRepository.ts";
 import {
   inviteUser,
   listUsers,
@@ -16,7 +16,7 @@ import {
   revokeUser,
   setDistributionListMembership,
   updateUserRoles,
-} from "./accessService.js";
+} from "./accessService.ts";
 
 const ALLOWED_DOMAIN = "example.com";
 const FIXED_NOW = () => "2026-01-01T00:00:00.000Z";

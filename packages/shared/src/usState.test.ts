@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractStateCode } from "./usState.js";
+import { extractStateCode } from "./usState.ts";
 
 describe("extractStateCode", () => {
   it("extracts the state from a comma-separated address", () => {

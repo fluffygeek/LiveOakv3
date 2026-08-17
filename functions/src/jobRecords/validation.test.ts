@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { InvalidArgumentError } from "../access/errors.js";
+import { InvalidArgumentError } from "../access/errors.ts";
 import {
   parseCreateJobRecordInput,
   parseEditJobRecordPatch,
@@ -8,7 +8,7 @@ import {
   parseSetFlagInput,
   parseUnlinkDuplicateInput,
   parseWeeklyListInput,
-} from "./validation.js";
+} from "./validation.ts";
 
 function validPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {

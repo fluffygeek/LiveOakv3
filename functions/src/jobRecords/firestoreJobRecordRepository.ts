@@ -1,6 +1,6 @@
 import type { Firestore } from "firebase-admin/firestore";
 import { normalizeAddress, type JobRecord } from "@liveoakv3/shared";
-import type { DuplicateLinkingResult, JobRecordRepository } from "./jobRecordRepository.js";
+import type { DuplicateLinkingResult, JobRecordRepository } from "./jobRecordRepository.ts";
 
 const COLLECTION = "jobRecords";
 

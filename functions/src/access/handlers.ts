@@ -1,12 +1,12 @@
-import { defineCallable, repository } from "../callableHandler.js";
+import { defineCallable, repository } from "../callableHandler.ts";
 import {
   inviteUser as inviteUserService,
   listUsers as listUsersService,
   revokeUser as revokeUserService,
   setDistributionListMembership as setDistributionListMembershipService,
   updateUserRoles as updateUserRolesService,
-} from "./accessService.js";
-import { parseEmail, parseOnDistributionList, parseRoles } from "./validation.js";
+} from "./accessService.ts";
+import { parseEmail, parseOnDistributionList, parseRoles } from "./validation.ts";
 
 /** Called by the mobile/web clients right after sign-in to learn the caller's roles (or that they're denied). */
 export const resolveMyAccess = defineCallable({

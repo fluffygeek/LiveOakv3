@@ -1,6 +1,6 @@
 import type { Firestore } from "firebase-admin/firestore";
 import type { UserRecord } from "@liveoakv3/shared";
-import type { UserRepository } from "./userRepository.js";
+import type { UserRepository } from "./userRepository.ts";
 
 const COLLECTION = "users";
 

@@ -1,5 +1,5 @@
 import { normalizeAddress, type JobRecord } from "@liveoakv3/shared";
-import type { DuplicateLinkingResult, JobRecordRepository } from "./jobRecordRepository.js";
+import type { DuplicateLinkingResult, JobRecordRepository } from "./jobRecordRepository.ts";
 
 /** Test double — never used by production code. */
 export class InMemoryJobRecordRepository implements JobRecordRepository {

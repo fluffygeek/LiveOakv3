@@ -1,22 +1,22 @@
-export { ROLES, isRole, isDistributionListEligibleRole } from "./roles.js";
-export type { Role } from "./roles.js";
-export { normalizeEmail } from "./user.js";
-export type { UserRecord } from "./user.js";
-export { isAllowedWorkspaceDomain } from "./workspaceDomain.js";
-export { WORK_CODES, findWorkCode } from "./workCode.js";
-export type { WorkCode } from "./workCode.js";
-export { DISCREPANCY_REASONS, findDiscrepancyReason } from "./discrepancyReason.js";
-export type { DiscrepancyReason } from "./discrepancyReason.js";
-export { noDuplicateLink } from "./jobRecord.js";
+export { ROLES, isRole, isDistributionListEligibleRole } from "./roles.ts";
+export type { Role } from "./roles.ts";
+export { normalizeEmail } from "./user.ts";
+export type { UserRecord } from "./user.ts";
+export { isAllowedWorkspaceDomain } from "./workspaceDomain.ts";
+export { WORK_CODES, findWorkCode } from "./workCode.ts";
+export type { WorkCode } from "./workCode.ts";
+export { DISCREPANCY_REASONS, findDiscrepancyReason } from "./discrepancyReason.ts";
+export type { DiscrepancyReason } from "./discrepancyReason.ts";
+export { noDuplicateLink } from "./jobRecord.ts";
 export type {
   AddressVerificationStatus,
   DuplicateLink,
   JobRecord,
-} from "./jobRecord.js";
-export { normalizeAddress } from "./address.js";
-export type { AuditLogEntry } from "./auditLog.js";
-export { easternWeekWindow } from "./easternWeek.js";
-export type { WeekWindow } from "./easternWeek.js";
-export { isCentralWallClockTime } from "./centralTime.js";
-export { extractStateCode } from "./usState.js";
-export type { StateExportBatch } from "./stateExport.js";
+} from "./jobRecord.ts";
+export { normalizeAddress } from "./address.ts";
+export type { AuditLogEntry } from "./auditLog.ts";
+export { easternWeekWindow } from "./easternWeek.ts";
+export type { WeekWindow } from "./easternWeek.ts";
+export { isCentralWallClockTime } from "./centralTime.ts";
+export { extractStateCode } from "./usState.ts";
+export type { StateExportBatch } from "./stateExport.ts";
