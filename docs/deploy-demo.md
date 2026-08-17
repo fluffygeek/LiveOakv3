@@ -6,9 +6,10 @@ billing, no real Supabase project, no live URL. `supabase/config.toml` and
 init` step for a fresh clone — just `supabase start`.
 
 A second path — **a live, deployed Supabase project** reachable by anyone with a URL —
-doesn't exist yet. Provisioning one is tracked separately in #37 ("Provision production
-Supabase project"); once that lands, this doc will grow a second path the same way the
-old Firebase-era version had one. Until then, this doc only covers local dev.
+now exists too: see [`deploy-runbook.md`](./deploy-runbook.md) (#37, "Provision
+production Supabase project") for project creation, `supabase link`/`db push`/`functions
+deploy`, Vault/secrets seeding, Google OAuth config, and web/mobile env wiring against the
+real project. This doc still only covers local dev.
 
 **Read [Known gaps](#known-gaps-worth-disclosing-before-the-demo) before you start** —
 the migration from Firebase to Supabase is in progress and lands incrementally. As of
