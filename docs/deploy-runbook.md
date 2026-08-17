@@ -170,11 +170,28 @@ vercel env add VITE_SUPABASE_ANON_KEY production preview development
 # value: <anon/publishable key, from Dashboard -> Project Settings -> API>
 ```
 
+**Also set `VITE_WORKSPACE_DOMAIN`** — `apps/web/src/supabase.ts` reads it as the Google
+OAuth `hd` hint and defaults to the placeholder `"example.com"` if unset. This is separate
+from step 6's `ALLOWED_WORKSPACE_DOMAIN` (an Edge Function secret that authoritatively
+enforces the restriction server-side in `resolveAccess`); this one is client-side UX only,
+but leaving it at the placeholder means the sign-in button hints the wrong domain even
+once the server-side check is configured correctly:
+
+```bash
+vercel env add VITE_WORKSPACE_DOMAIN production preview development
+# value: <real Workspace domain, same value as step 6>
+```
+
+**Not yet done** — needs the real Workspace domain, same as step 6.
+
 ## 9. Mobile env vars
 
 `apps/mobile/src/supabase.ts` reads `EXPO_PUBLIC_SUPABASE_URL` and
 `EXPO_PUBLIC_SUPABASE_ANON_KEY` (no safe default for the anon key — same caveat as the
-web app, see `deploy-demo.md`).
+web app, see `deploy-demo.md`). `apps/mobile/src/auth/useAuth.ts` also reads
+`EXPO_PUBLIC_WORKSPACE_DOMAIN` as the Google OAuth `hd` hint, same client-side-UX-only
+caveat as `VITE_WORKSPACE_DOMAIN` above (defaults to the placeholder `"example.com"` if
+unset — set it to the same real Workspace domain used in step 6).
 
 **Local Expo dev** — `apps/mobile/.env.local` (gitignored via the root `.gitignore`'s
 `.env*` pattern; verified with `git check-ignore -v apps/mobile/.env.local`) is already
@@ -183,6 +200,7 @@ seeded for this project:
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon/publishable key>
+EXPO_PUBLIC_WORKSPACE_DOMAIN=<real Workspace domain>
 ```
 
 **EAS builds** — mobile ships via EAS, not Vercel, and there's no `eas.json` or EAS
@@ -195,6 +213,8 @@ npx eas-cli env:create --scope project --name EXPO_PUBLIC_SUPABASE_URL \
   --value https://<project-ref>.supabase.co --environment production --visibility plaintext
 npx eas-cli env:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY \
   --value <anon/publishable key> --environment production --visibility plaintext
+npx eas-cli env:create --scope project --name EXPO_PUBLIC_WORKSPACE_DOMAIN \
+  --value <real Workspace domain> --environment production --visibility plaintext
 ```
 
 (`EXPO_PUBLIC_*` vars are baked into the client bundle by design, so `--visibility
@@ -207,30 +227,29 @@ project setup; not attempted here.
 
 ## Known gaps, worth disclosing
 
-- **11 of 13 Edge Functions fail to deploy in this environment — a CLI/Windows bug, not a
-  code issue.** `supabase functions deploy`'s Docker-based bundler resolves any import
-  that goes through `supabase/functions/deno.json`'s import map (e.g. `@liveoakv3/shared`,
-  used by every function except `ping`/`scheduled-ping`) into a malformed `file://` URL
-  that's missing the Windows drive letter — e.g. `file:///Users/Jose/projects/...` instead
-  of `file:///C:/Users/Jose/projects/...` — so the bundler reports files that genuinely
-  exist as "Module not found". Plain relative imports (not routed through the import map)
-  resolve fine even several `../` deep, which is why `ping` and `scheduled-ping` (which
-  only reach `packages/shared/dist/*.js` via a relative path, not the `@liveoakv3/shared`
-  alias) deployed successfully and the other 11 didn't. Already on the latest CLI
-  (`2.114.0` — `npm view supabase version` confirms no newer release exists). The
-  alternate `--use-api` server-side bundler avoids the Windows path bug but hits a
-  different wall: it doesn't honor `deno.json`'s `"unstable": ["sloppy-imports"]`, so the
-  many `.js`-importing-`.ts`-sibling files throughout `functions/src/**` (the same pattern
-  already tracked as #42's local-`supabase start` blocker) fail there too, just with a
-  different error. **Next step for whoever picks this up**: try deploying from a
-  non-Windows environment (Linux/macOS CI runner, or WSL2) where the path bug shouldn't
-  reproduce — that's the fastest unblock, since the code itself works fine under `deno
-  check`/`deno test` today.
+- **11 of 13 Edge Functions fail to deploy in this environment — cause not fully
+  isolated, but strongly overlaps with #42's local-`supabase start` bug.**
+  `supabase functions deploy`'s Docker-based bundler reports files that genuinely exist as
+  "Module not found," via a malformed `file://` URL missing the Windows drive letter (e.g.
+  `file:///Users/Jose/projects/...` instead of `file:///C:/Users/Jose/projects/...`). Every
+  one of the 11 failing functions transitively imports `functions/src/access/accessService.ts`
+  (directly or via another `functions/src/**` module), which both (a) imports through
+  `supabase/functions/deno.json`'s `@liveoakv3/shared` import map alias, and (b) uses
+  `.js`-extension imports pointing at sibling `.ts` files (`./errors.js`, `./userRepository.js`
+  — the exact pattern #42 fixed for local `supabase start`, per `deploy-demo.md`). `ping` and
+  `scheduled-ping` — the only two that deployed successfully — hit *neither*: they only reach
+  `packages/shared/dist/*.js` (compiled, real `.js` files) via plain relative imports, never
+  the alias or a `.js`-pointing-at-`.ts` specifier. Because both suspect patterns are present
+  together in every failing function's import graph, this doc can't yet say which one (or
+  both) triggers the bundler bug. **Next step for whoever picks this up**: rebase this branch
+  onto #42's fix (or wait for it to land on `main`) — since #42 removed every `.js`-pointing-
+  at-`.ts` specifier from `functions/src/**`, retrying the deploy afterward is the cheapest way
+  to find out: if the 11 functions deploy cleanly, the sibling-extension pattern was the
+  trigger and this gap is closed; if they still fail, the `@liveoakv3/shared` import-map alias
+  itself is implicated, and trying a non-Windows environment (Linux/macOS CI, WSL2) is the
+  next thing to try.
 - This doc's own migrations/functions were deployed from a git worktree nested under
   `.claude/worktrees/...` — a long, deeply-nested path. Not ruled out as a contributing
   factor to the bug above, but a plain relative import at the same depth (`ping`'s
   `../../../packages/shared/dist/workspaceDomain.js`) resolved fine, so path depth alone
-  doesn't explain it — the import-map indirection specifically does.
-- #42 (documented in `deploy-demo.md`) — the same underlying sloppy-imports pattern also
-  blocks `supabase start` locally on an unmodified checkout. Worth fixing once, since it's
-  now blocking both local dev and production deploys of most functions.
+  doesn't explain it.
