@@ -1,6 +1,6 @@
 import { easternWeekWindow, type JobRecord, type Role } from "@liveoakv3/shared";
-import { ForbiddenError, InvalidArgumentError } from "../access/errors.js";
-import type { JobRecordRepository } from "./jobRecordRepository.js";
+import { ForbiddenError, InvalidArgumentError } from "../access/errors.ts";
+import type { JobRecordRepository } from "./jobRecordRepository.ts";
 
 export interface WeeklyListDeps {
   jobRecordRepo: JobRecordRepository;

@@ -6,9 +6,9 @@ import {
   InvalidArgumentError,
   JobRecordNotFoundError,
   NotDuplicateError,
-} from "../access/errors.js";
-import { InMemoryAuditLogRepository } from "./inMemoryAuditLogRepository.js";
-import { InMemoryJobRecordRepository } from "./inMemoryJobRecordRepository.js";
+} from "../access/errors.ts";
+import { InMemoryAuditLogRepository } from "./inMemoryAuditLogRepository.ts";
+import { InMemoryJobRecordRepository } from "./inMemoryJobRecordRepository.ts";
 import {
   editJobRecord,
   getJobRecord,
@@ -19,7 +19,7 @@ import {
   setDiscrepancy,
   setPicturesDownloaded,
   unlinkDuplicate,
-} from "./jobRecordReviewService.js";
+} from "./jobRecordReviewService.ts";
 
 const NOW = () => "2026-02-01T09:00:00.000Z";
 const GENERATE_ID = () => "audit-1";

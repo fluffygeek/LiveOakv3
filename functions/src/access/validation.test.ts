@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { InvalidArgumentError } from "./errors.js";
-import { parseEmail, parseOnDistributionList, parseRoles } from "./validation.js";
+import { InvalidArgumentError } from "./errors.ts";
+import { parseEmail, parseOnDistributionList, parseRoles } from "./validation.ts";
 
 describe("parseEmail", () => {
   it("returns a non-empty string as-is", () => {

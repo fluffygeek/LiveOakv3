@@ -11,9 +11,9 @@ import {
   InvalidArgumentError,
   JobRecordNotFoundError,
   NotDuplicateError,
-} from "../access/errors.js";
-import type { AuditLogRepository } from "./auditLogRepository.js";
-import type { JobRecordRepository } from "./jobRecordRepository.js";
+} from "../access/errors.ts";
+import type { AuditLogRepository } from "./auditLogRepository.ts";
+import type { JobRecordRepository } from "./jobRecordRepository.ts";
 
 export interface EditableJobRecordPatch {
   jobId?: string;

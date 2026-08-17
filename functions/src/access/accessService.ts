@@ -12,8 +12,8 @@ import {
   LastAdministratorError,
   NotAllowlistedError,
   UserNotFoundError,
-} from "./errors.js";
-import type { UserRepository } from "./userRepository.js";
+} from "./errors.ts";
+import type { UserRepository } from "./userRepository.ts";
 
 export interface AccessContext {
   allowedWorkspaceDomain: string;

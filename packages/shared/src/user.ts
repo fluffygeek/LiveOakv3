@@ -1,4 +1,4 @@
-import type { Role } from "./roles.js";
+import type { Role } from "./roles.ts";
 
 export interface UserRecord {
   /** Normalized (lowercased, trimmed) email — the identity key. */

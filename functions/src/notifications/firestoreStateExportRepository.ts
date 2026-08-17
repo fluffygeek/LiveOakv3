@@ -1,6 +1,6 @@
 import type { Firestore } from "firebase-admin/firestore";
 import type { StateExportBatch } from "@liveoakv3/shared";
-import type { StateExportRepository } from "./stateExportRepository.js";
+import type { StateExportRepository } from "./stateExportRepository.ts";
 
 const COLLECTION = "stateExports";
 

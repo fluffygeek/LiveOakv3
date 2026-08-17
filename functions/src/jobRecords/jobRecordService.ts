@@ -7,10 +7,10 @@ import {
   type JobRecord,
   type Role,
 } from "@liveoakv3/shared";
-import { ForbiddenError, InvalidArgumentError } from "../access/errors.js";
-import type { AddressVerifier } from "./addressVerifier.js";
-import type { AuditLogRepository } from "./auditLogRepository.js";
-import type { JobRecordRepository } from "./jobRecordRepository.js";
+import { ForbiddenError, InvalidArgumentError } from "../access/errors.ts";
+import type { AddressVerifier } from "./addressVerifier.ts";
+import type { AuditLogRepository } from "./auditLogRepository.ts";
+import type { JobRecordRepository } from "./jobRecordRepository.ts";
 
 export interface CreateJobRecordInput {
   jobId: string;

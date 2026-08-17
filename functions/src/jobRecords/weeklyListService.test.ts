@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { noDuplicateLink, type JobRecord } from "@liveoakv3/shared";
-import { ForbiddenError, InvalidArgumentError } from "../access/errors.js";
-import { InMemoryJobRecordRepository } from "./inMemoryJobRecordRepository.js";
-import { listMyWeeklyJobRecords } from "./weeklyListService.js";
+import { ForbiddenError, InvalidArgumentError } from "../access/errors.ts";
+import { InMemoryJobRecordRepository } from "./inMemoryJobRecordRepository.ts";
+import { listMyWeeklyJobRecords } from "./weeklyListService.ts";
 
 // 2026-01-06 (Tuesday) is inside the Sun 2026-01-04 .. Sun 2026-01-11 Eastern week.
 const NOW = () => "2026-01-06T12:00:00.000Z";

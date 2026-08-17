@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAllowedWorkspaceDomain } from "./workspaceDomain.js";
+import { isAllowedWorkspaceDomain } from "./workspaceDomain.ts";
 
 describe("isAllowedWorkspaceDomain", () => {
   it("allows an email on the configured domain", () => {

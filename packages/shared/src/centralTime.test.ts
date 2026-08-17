@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCentralWallClockTime } from "./centralTime.js";
+import { isCentralWallClockTime } from "./centralTime.ts";
 
 describe("isCentralWallClockTime", () => {
   it("matches 8pm Central (CST, UTC-6) before the spring-forward transition", () => {

@@ -1,5 +1,5 @@
 import type { StateExportBatch } from "@liveoakv3/shared";
-import type { StateExportRepository } from "./stateExportRepository.js";
+import type { StateExportRepository } from "./stateExportRepository.ts";
 
 /** Test double — never used by production code. */
 export class InMemoryStateExportRepository implements StateExportRepository {

@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { noDuplicateLink, type JobRecord } from "@liveoakv3/shared";
-import { ForbiddenError, InvalidArgumentError } from "../access/errors.js";
-import { FakeAddressVerifier } from "./fakeAddressVerifier.js";
-import { InMemoryAuditLogRepository } from "./inMemoryAuditLogRepository.js";
-import { InMemoryJobRecordRepository } from "./inMemoryJobRecordRepository.js";
-import { createJobRecord, type CreateJobRecordInput } from "./jobRecordService.js";
+import { ForbiddenError, InvalidArgumentError } from "../access/errors.ts";
+import { FakeAddressVerifier } from "./fakeAddressVerifier.ts";
+import { InMemoryAuditLogRepository } from "./inMemoryAuditLogRepository.ts";
+import { InMemoryJobRecordRepository } from "./inMemoryJobRecordRepository.ts";
+import { createJobRecord, type CreateJobRecordInput } from "./jobRecordService.ts";
 
 const SUBMITTED_AT = "2026-01-01T12:00:00.000Z";
 const SERVER_NOW = () => "2026-01-01T12:00:05.000Z"; // 5s after submission — plausible

@@ -1,9 +1,9 @@
 import { getFirestore } from "firebase-admin/firestore";
-import { defineCallable } from "../callableHandler.js";
-import { FirestoreAuditLogRepository } from "./firestoreAuditLogRepository.js";
-import { FirestoreJobRecordRepository } from "./firestoreJobRecordRepository.js";
-import { NotConfiguredAddressVerifier } from "./notConfiguredAddressVerifier.js";
-import { createJobRecord as createJobRecordService } from "./jobRecordService.js";
+import { defineCallable } from "../callableHandler.ts";
+import { FirestoreAuditLogRepository } from "./firestoreAuditLogRepository.ts";
+import { FirestoreJobRecordRepository } from "./firestoreJobRecordRepository.ts";
+import { NotConfiguredAddressVerifier } from "./notConfiguredAddressVerifier.ts";
+import { createJobRecord as createJobRecordService } from "./jobRecordService.ts";
 import {
   editJobRecord as editJobRecordService,
   getJobRecord as getJobRecordService,
@@ -14,8 +14,8 @@ import {
   setDiscrepancy as setDiscrepancyService,
   setPicturesDownloaded as setPicturesDownloadedService,
   unlinkDuplicate as unlinkDuplicateService,
-} from "./jobRecordReviewService.js";
-import { listMyWeeklyJobRecords as listMyWeeklyJobRecordsService } from "./weeklyListService.js";
+} from "./jobRecordReviewService.ts";
+import { listMyWeeklyJobRecords as listMyWeeklyJobRecordsService } from "./weeklyListService.ts";
 import {
   parseCreateJobRecordInput,
   parseEditJobRecordPatch,
@@ -24,7 +24,7 @@ import {
   parseSetFlagInput,
   parseUnlinkDuplicateInput,
   parseWeeklyListInput,
-} from "./validation.js";
+} from "./validation.ts";
 
 function jobRecordDeps() {
   const db = getFirestore();

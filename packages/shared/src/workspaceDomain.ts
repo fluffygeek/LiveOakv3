@@ -1,4 +1,4 @@
-import { normalizeEmail } from "./user.js";
+import { normalizeEmail } from "./user.ts";
 
 /** Sign-in is restricted to accounts on the company's Google Workspace domain (ADR-0001). */
 export function isAllowedWorkspaceDomain(

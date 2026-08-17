@@ -1,4 +1,4 @@
-import type { EmailMessage, EmailSender } from "./emailSender.js";
+import type { EmailMessage, EmailSender } from "./emailSender.ts";
 
 /**
  * Placeholder pending a real email-delivery vendor (none chosen or scoped
