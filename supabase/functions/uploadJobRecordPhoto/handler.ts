@@ -7,13 +7,23 @@ import type { PhotoStorageRepository } from "./photoStorageRepository.ts";
 
 /** Allow-listed content types -- mirrors the bucket's `allowed_mime_types` constraint
  * (supabase/migrations/20260817000000_job_record_photos_bucket.sql) so a rejected upload
- * fails fast with a clear 400 here rather than a less legible Storage-layer error. */
-const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/heic": "heic",
-  "image/heif": "heif",
-};
+ * fails fast with a clear 400 here rather than a less legible Storage-layer error.
+ *
+ * A `Map` rather than a plain object: a plain-object lookup via the `in` operator (or a
+ * bracket-index read) also matches inherited `Object.prototype` property names --
+ * `"constructor" in {"image/jpeg":"jpg"}` is `true`, and `{...}["constructor"]` returns the
+ * `Object` constructor function itself. A request with `contentType: "constructor"` (or
+ * `"toString"`, `"hasOwnProperty"`, etc.) would then slip past the allowlist check and produce
+ * a garbage extension/content-type forwarded to Storage. `Map` has no prototype chain of
+ * string-keyed properties to accidentally match, so `.has`/`.get` need no extra guarding --
+ * the same allowlist-safety goal @liveoakv3/shared's `isRole()` (packages/shared/src/roles.ts)
+ * reaches via `array.includes()`. */
+const EXTENSION_BY_CONTENT_TYPE = new Map<string, string>([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/heic", "heic"],
+  ["image/heif", "heif"],
+]);
 
 export interface UploadJobRecordPhotoInput {
   contentType: string;
@@ -28,9 +38,9 @@ function parseUploadJobRecordPhotoInput(data: unknown): UploadJobRecordPhotoInpu
   }
   const record = data as Record<string, unknown>;
   const contentType = record.contentType;
-  if (typeof contentType !== "string" || !(contentType in EXTENSION_BY_CONTENT_TYPE)) {
+  if (typeof contentType !== "string" || !EXTENSION_BY_CONTENT_TYPE.has(contentType)) {
     throw new InvalidArgumentError(
-      `contentType must be one of: ${Object.keys(EXTENSION_BY_CONTENT_TYPE).join(", ")}`,
+      `contentType must be one of: ${[...EXTENSION_BY_CONTENT_TYPE.keys()].join(", ")}`,
     );
   }
   const base64Data = record.base64Data;
@@ -80,8 +90,18 @@ function requireTechnician(callerRoles: Role[]): void {
  * request-handling path as every other Edge Function instead of hand-rolling multipart
  * parsing for one endpoint. Base64's ~33% size overhead is an acceptable tradeoff for typical
  * compressed phone-camera photos (low single-digit MB at the quality
- * apps/mobile/src/jobRecords/SubmitJobScreen.tsx's ImagePicker captures with), comfortably
- * under the bucket's 50MiB file_size_limit.
+ * apps/mobile/src/jobRecords/SubmitJobScreen.tsx's ImagePicker captures with).
+ *
+ * NOTE: the bucket's 50MiB `file_size_limit` (supabase/config.toml) is NOT the binding
+ * constraint on this request body -- it only caps what Storage itself accepts once a request
+ * reaches it. Supabase Edge Functions run on Supabase's own request-handling layer in front of
+ * that, and its request-body ceiling is (as of this writing) not publicly documented at all
+ * -- see the still-open supabase/supabase#28053 asking Supabase to document it, and
+ * supabase/cli#5076 reporting an undocumented ~4MiB ceiling encountered in practice (for
+ * function *bundle* deploys, a related but distinct limit from a per-request payload). Given
+ * that uncertainty, the actual guard against an oversized request lives client-side, in
+ * apps/mobile/src/jobRecords/photoUpload.ts's pre-upload size check, well under any plausible
+ * platform ceiling -- not here, and not assumed to be the bucket's 50MiB.
  *
  * Returns the object's storage path -- not a public URL, since the bucket denies direct
  * anon/authenticated access and so has no public URL -- as the durable reference the mobile
@@ -102,7 +122,9 @@ export function createHandler(
     handle: async (caller, input) => {
       requireTechnician(caller.roles);
       const bytes = decodeBase64(input.base64Data);
-      const extension = EXTENSION_BY_CONTENT_TYPE[input.contentType];
+      // parseUploadJobRecordPhotoInput already confirmed input.contentType is a key of
+      // EXTENSION_BY_CONTENT_TYPE, so this get() is guaranteed to hit.
+      const extension = EXTENSION_BY_CONTENT_TYPE.get(input.contentType) as string;
       const path = `${generateId()}.${extension}`;
       await photoStorageRepo.upload(path, bytes, input.contentType);
       return { path };

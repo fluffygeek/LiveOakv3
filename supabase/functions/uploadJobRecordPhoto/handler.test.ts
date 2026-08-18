@@ -149,6 +149,32 @@ Deno.test("uploadJobRecordPhoto - an unsupported contentType is a 400, never rea
   assertEquals(photoStorageRepo.uploads.length, 0);
 });
 
+// Regression test for a prototype-pollution-style allowlist bypass: the allowlist check used
+// to use `contentType in EXTENSION_BY_CONTENT_TYPE` against a plain object, and `in` also
+// matches inherited Object.prototype property names ("constructor" among them) -- a request
+// with contentType: "constructor" slipped past the intended 400 and produced a garbage
+// extension (the Object constructor function itself). EXTENSION_BY_CONTENT_TYPE is now a Map,
+// which has no such prototype chain to accidentally match.
+Deno.test("uploadJobRecordPhoto - a contentType of 'constructor' is rejected with 400, not treated as allow-listed", async () => {
+  const userRepo = new InMemoryUserRepository();
+  userRepo.seed(technicianRecord("tech@example.com"));
+  const photoStorageRepo = new FakePhotoStorageRepository();
+  const handler = createHandler(
+    userRepo,
+    photoStorageRepo,
+    fakeVerifyCaller("tech@example.com"),
+  );
+
+  const response = await handler(
+    request({ contentType: "constructor", base64Data: HELLO_BASE64 }),
+  );
+
+  assertEquals(response.status, 400);
+  const body = await response.json();
+  assertEquals(body.error.code, "invalid-argument");
+  assertEquals(photoStorageRepo.uploads.length, 0);
+});
+
 Deno.test("uploadJobRecordPhoto - missing base64Data is a 400", async () => {
   const userRepo = new InMemoryUserRepository();
   userRepo.seed(technicianRecord("tech@example.com"));

@@ -22,11 +22,13 @@ export interface JobRecordSubmission {
   footage: number;
   notes: string;
   isNewBuild: boolean;
-  // NOTE: these are local device URIs — submitJobRecord (api.ts) uploads them to Supabase
-  // Storage via photoUpload.ts immediately before calling createJobRecord, swapping in the
-  // real storage-object paths that actually get persisted (ticket #29). Kept as local URIs
-  // here (rather than uploading at draft/enqueue time) so a submission queued offline below
-  // re-attempts the upload from scratch on every sync retry — see api.ts's submitJobRecord.
+  // NOTE: local device (file://) URIs until submitJobRecord (api.ts) uploads them to
+  // Supabase Storage via photoUpload.ts immediately before calling createJobRecord, at which
+  // point each entry is swapped in-place for its real storage-object path (ticket #29). A
+  // submission queued offline below may hold a mix of local URIs and already-uploaded storage
+  // paths if a prior attempt got partway through — see photoUpload.ts's isLocalPhotoUri and
+  // uploadJobRecordPhotos, and this file's updateQueuedSubmissionPhotos — so a retry only
+  // re-uploads what's still a local URI instead of re-uploading everything from scratch.
   photoUrls: string[];
   /** Device-local time captured at the moment the Technician tapped Submit. */
   submittedAt: string;
@@ -70,4 +72,21 @@ export async function enqueueSubmission(submission: JobRecordSubmission): Promis
 export async function removeFromQueue(localId: string): Promise<void> {
   const queue = await getQueue();
   await saveQueue(queue.filter((item) => item.localId !== localId));
+}
+
+/** Persists a queued submission's photoUrls mid-retry -- called after each individual photo
+ * finishes uploading during a background sync attempt (sync.ts), not just once the whole
+ * submission succeeds. Without this, a submission that gets partway through re-uploading its
+ * photos and then fails again (or the app is killed) forgets which photos already made it to
+ * Storage on this attempt, and the next retry re-uploads them under fresh UUIDs -- permanently
+ * orphaning the previous attempt's objects in the job-record-photos bucket (ticket #29 code
+ * review finding). A no-op if the submission has since been removed from the queue (e.g. a
+ * concurrent sync run already completed it). */
+export async function updateQueuedSubmissionPhotos(
+  localId: string,
+  photoUrls: string[],
+): Promise<void> {
+  const queue = await getQueue();
+  const updated = queue.map((item) => (item.localId === localId ? { ...item, photoUrls } : item));
+  await saveQueue(updated);
 }
