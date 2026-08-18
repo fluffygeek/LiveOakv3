@@ -1,41 +1,18 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { isDistributionListEligibleRole, ROLES, type Role, type UserRecord } from "@liveoakv3/shared";
-import { supabase } from "../supabase";
+import { invokeFunction } from "../supabase";
 
-/**
- * Invokes a `supabase.functions.invoke` Edge Function call and unwraps its `{ data, error }`
- * result into a resolved value or a thrown error — the same unwrapping pattern
- * apps/web/src/auth/useAuth.ts uses for `resolveMyAccess`, factored here since every call
- * site below (listUsers, inviteUser, updateUserRoles, revokeUser,
- * setDistributionListMembership) needs it identically.
- */
-async function invoke<TResult>(
-  name: string,
-  body?: Record<string, unknown>,
-): Promise<TResult> {
-  const { data, error } = await supabase.functions.invoke<TResult>(name, {
-    body,
-  });
-  if (error) {
-    throw error;
-  }
-  if (data === null || data === undefined) {
-    throw new Error(`${name} returned no data`);
-  }
-  return data;
-}
-
-const listUsersFn = () => invoke<UserRecord[]>("listUsers");
+const listUsersFn = () => invokeFunction<UserRecord[]>("listUsers");
 const inviteUserFn = (body: { email: string; roles: Role[] }) =>
-  invoke<UserRecord>("inviteUser", body);
+  invokeFunction<UserRecord>("inviteUser", body);
 const updateUserRolesFn = (body: { email: string; roles: Role[] }) =>
-  invoke<UserRecord>("updateUserRoles", body);
+  invokeFunction<UserRecord>("updateUserRoles", body);
 const revokeUserFn = (body: { email: string }) =>
-  invoke<{ revoked: boolean }>("revokeUser", body);
+  invokeFunction<{ revoked: boolean }>("revokeUser", body);
 const setDistributionListMembershipFn = (body: {
   email: string;
   onDistributionList: boolean;
-}) => invoke<UserRecord>("setDistributionListMembership", body);
+}) => invokeFunction<UserRecord>("setDistributionListMembership", body);
 
 export function ManageUsersScreen() {
   const [users, setUsers] = useState<UserRecord[]>([]);

@@ -108,6 +108,25 @@ Deno.test("PostgresAuditLogRepository.listByRecordId - returns entries ordered b
   assertEquals(fetched.map((e) => e.id), ["entry-earlier", "entry-later"]);
 });
 
+Deno.test("PostgresAuditLogRepository.listByRecordId - returns an empty array when PostgREST responds with null data", async () => {
+  // Regression test: listByRecordId used to cast `data as AuditLogRow[]` and call `.map()`
+  // without guarding against a nullish `data` first, unlike `append`'s error-only guard --
+  // an unexpected zero-row response shape from PostgREST would throw instead of returning [].
+  const client = {
+    from: (_table: string) => ({
+      select: (_columns: string) => ({
+        eq: (_column: string, _value: unknown) => ({
+          order: (_column: string, _opts?: { ascending?: boolean }) =>
+            Promise.resolve({ data: null, error: null }),
+        }),
+      }),
+    }),
+  } as unknown as SupabaseClient;
+  const repo = new PostgresAuditLogRepository(client);
+
+  assertEquals(await repo.listByRecordId("record-1"), []);
+});
+
 Deno.test("PostgresAuditLogRepository.append - round-trips null before/after", async () => {
   const { client } = fakeClient([]);
   const repo = new PostgresAuditLogRepository(client);

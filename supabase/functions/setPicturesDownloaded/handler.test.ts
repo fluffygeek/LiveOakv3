@@ -1,101 +1,11 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import { noDuplicateLink, type JobRecord } from "../../../packages/shared/src/jobRecord.ts";
-import type { AuditLogEntry } from "../../../packages/shared/src/auditLog.ts";
 import type { UserRecord } from "../../../packages/shared/src/user.ts";
-import type { UserRepository } from "../../../functions/src/access/userRepository.ts";
-import type {
-  DuplicateLinkingResult,
-  JobRecordRepository,
-} from "../../../functions/src/jobRecords/jobRecordRepository.ts";
-import type { AuditLogRepository } from "../../../functions/src/jobRecords/auditLogRepository.ts";
+import { InMemoryUserRepository } from "../../../functions/src/access/inMemoryUserRepository.ts";
+import { InMemoryJobRecordRepository } from "../../../functions/src/jobRecords/inMemoryJobRecordRepository.ts";
+import { InMemoryAuditLogRepository } from "../../../functions/src/jobRecords/inMemoryAuditLogRepository.ts";
 import { UnauthenticatedError, type VerifyCaller } from "../_shared/callableHandler.ts";
 import { createHandler } from "./handler.ts";
-
-/** Test double — never used by production code. */
-class InMemoryUserRepository implements UserRepository {
-  private readonly usersByEmail = new Map<string, UserRecord>();
-
-  getUser(email: string): Promise<UserRecord | null> {
-    return Promise.resolve(this.usersByEmail.get(email) ?? null);
-  }
-
-  putUser(record: UserRecord): Promise<void> {
-    this.usersByEmail.set(record.email, record);
-    return Promise.resolve();
-  }
-
-  listUsers(): Promise<UserRecord[]> {
-    return Promise.resolve([...this.usersByEmail.values()]);
-  }
-
-  seed(record: UserRecord): void {
-    this.usersByEmail.set(record.email, record);
-  }
-}
-
-/** Test double — never used by production code. Kept minimal: this file only exercises
- * setPicturesDownloaded's transport/auth wiring, not Duplicate matching. */
-class InMemoryJobRecordRepository implements JobRecordRepository {
-  private readonly recordsById = new Map<string, JobRecord>();
-
-  update(record: JobRecord): Promise<void> {
-    this.recordsById.set(record.recordId, record);
-    return Promise.resolve();
-  }
-
-  updateMany(records: JobRecord[]): Promise<void> {
-    for (const record of records) this.recordsById.set(record.recordId, record);
-    return Promise.resolve();
-  }
-
-  getById(recordId: string): Promise<JobRecord | null> {
-    return Promise.resolve(this.recordsById.get(recordId) ?? null);
-  }
-
-  list(): Promise<JobRecord[]> {
-    return Promise.resolve([...this.recordsById.values()]);
-  }
-
-  listByTechnicianAndWindow(): Promise<JobRecord[]> {
-    return Promise.resolve([...this.recordsById.values()]);
-  }
-
-  listWithActiveDiscrepancy(): Promise<JobRecord[]> {
-    return Promise.resolve([...this.recordsById.values()].filter((r) => r.discrepancy));
-  }
-
-  createWithDuplicateLinking(
-    _normalizedAddress: string,
-    _sinceIso: string,
-    buildRecord: (matches: JobRecord[]) => DuplicateLinkingResult,
-  ): Promise<JobRecord> {
-    const { record } = buildRecord([]);
-    this.recordsById.set(record.recordId, record);
-    return Promise.resolve(record);
-  }
-
-  seed(record: JobRecord): void {
-    this.recordsById.set(record.recordId, record);
-  }
-}
-
-/** Test double — never used by production code. */
-class InMemoryAuditLogRepository implements AuditLogRepository {
-  private readonly entries: AuditLogEntry[] = [];
-
-  append(entry: AuditLogEntry): Promise<void> {
-    this.entries.push(entry);
-    return Promise.resolve();
-  }
-
-  listByRecordId(recordId: string): Promise<AuditLogEntry[]> {
-    return Promise.resolve(this.entries.filter((entry) => entry.recordId === recordId));
-  }
-
-  get all(): AuditLogEntry[] {
-    return this.entries;
-  }
-}
 
 function fakeVerifyCaller(email: string): VerifyCaller {
   return () => Promise.resolve({ email });
@@ -166,9 +76,9 @@ Deno.test("setPicturesDownloaded - a Payroll/Application Administrator can toggl
   const stored = await jobRecordRepo.getById("record-1");
   assertEquals(stored?.picturesDownloaded, true);
 
-  assertEquals(auditLogRepo.all.length, 1);
-  assertEquals(auditLogRepo.all[0].action, "pictures-downloaded-set");
-  assertEquals(auditLogRepo.all[0].actorEmail, "admin@example.com");
+  assertEquals(auditLogRepo.all().length, 1);
+  assertEquals(auditLogRepo.all()[0].action, "pictures-downloaded-set");
+  assertEquals(auditLogRepo.all()[0].actorEmail, "admin@example.com");
 });
 
 Deno.test("setPicturesDownloaded - even Closed records can be toggled (not gated by editability)", async () => {

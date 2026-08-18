@@ -75,6 +75,9 @@ export class PostgresAuditLogRepository implements AuditLogRepository {
     if (error) {
       throw new Error(`Failed to list audit log entries for ${recordId}: ${error.message}`);
     }
+    if (!data) {
+      return [];
+    }
     return (data as AuditLogRow[]).map(fromRow);
   }
 }

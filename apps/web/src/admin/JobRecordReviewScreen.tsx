@@ -8,41 +8,25 @@ import {
   type Role,
 } from "@liveoakv3/shared";
 import { functions } from "../firebase";
-import { supabase } from "../supabase";
+import { invokeFunction } from "../supabase";
 
 type EditableJobRecordPatch = Partial<
   Pick<JobRecord, "jobId" | "address" | "workCode" | "footage" | "notes">
 >;
 
-/**
- * Invokes a `supabase.functions.invoke` Edge Function call and unwraps its `{ data, error }`
- * result into a resolved value or a thrown error -- same unwrapping pattern
- * ManageUsersScreen.tsx's `invoke` helper uses, factored identically here rather than shared
- * across files since each admin screen owns its own small set of call sites.
- */
-async function invoke<TResult>(name: string, body?: Record<string, unknown>): Promise<TResult> {
-  const { data, error } = await supabase.functions.invoke<TResult>(name, { body });
-  if (error) {
-    throw error;
-  }
-  if (data === null || data === undefined) {
-    throw new Error(`${name} returned no data`);
-  }
-  return data;
-}
-
 // Ported to Supabase Edge Functions (ticket #23): listJobRecords/getJobRecord already existed
 // as Edge Functions from an earlier ticket but this screen still called them via
 // httpsCallable until now; editJobRecord/setPicturesDownloaded/listJobRecordAuditLog are new
 // Edge Functions built by #23 itself.
-const listJobRecordsFn = () => invoke<JobRecord[]>("listJobRecords");
-const getJobRecordFn = (body: { recordId: string }) => invoke<JobRecord>("getJobRecord", body);
+const listJobRecordsFn = () => invokeFunction<JobRecord[]>("listJobRecords");
+const getJobRecordFn = (body: { recordId: string }) =>
+  invokeFunction<JobRecord>("getJobRecord", body);
 const listJobRecordAuditLogFn = (body: { recordId: string }) =>
-  invoke<AuditLogEntry[]>("listJobRecordAuditLog", body);
+  invokeFunction<AuditLogEntry[]>("listJobRecordAuditLog", body);
 const editJobRecordFn = (body: { recordId: string } & EditableJobRecordPatch) =>
-  invoke<JobRecord>("editJobRecord", body);
+  invokeFunction<JobRecord>("editJobRecord", body);
 const setPicturesDownloadedFn = (body: { recordId: string; value: boolean }) =>
-  invoke<JobRecord>("setPicturesDownloaded", body);
+  invokeFunction<JobRecord>("setPicturesDownloaded", body);
 
 // Not yet ported -- no Edge Functions exist for these (setDiscrepancy/setClosed are #24's
 // scope, overrideDuplicatePrimary/unlinkDuplicate are #25's), so they stay on httpsCallable.

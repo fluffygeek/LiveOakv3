@@ -1,54 +1,10 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import type { AuditLogEntry } from "../../../packages/shared/src/auditLog.ts";
 import type { UserRecord } from "../../../packages/shared/src/user.ts";
-import type { UserRepository } from "../../../functions/src/access/userRepository.ts";
-import type { AuditLogRepository } from "../../../functions/src/jobRecords/auditLogRepository.ts";
+import { InMemoryUserRepository } from "../../../functions/src/access/inMemoryUserRepository.ts";
+import { InMemoryAuditLogRepository } from "../../../functions/src/jobRecords/inMemoryAuditLogRepository.ts";
 import { UnauthenticatedError, type VerifyCaller } from "../_shared/callableHandler.ts";
 import { createHandler } from "./handler.ts";
-
-/** Test double — never used by production code. */
-class InMemoryUserRepository implements UserRepository {
-  private readonly usersByEmail = new Map<string, UserRecord>();
-
-  getUser(email: string): Promise<UserRecord | null> {
-    return Promise.resolve(this.usersByEmail.get(email) ?? null);
-  }
-
-  putUser(record: UserRecord): Promise<void> {
-    this.usersByEmail.set(record.email, record);
-    return Promise.resolve();
-  }
-
-  listUsers(): Promise<UserRecord[]> {
-    return Promise.resolve([...this.usersByEmail.values()]);
-  }
-
-  seed(record: UserRecord): void {
-    this.usersByEmail.set(record.email, record);
-  }
-}
-
-/** Test double — never used by production code. */
-class InMemoryAuditLogRepository implements AuditLogRepository {
-  private readonly entries: AuditLogEntry[] = [];
-
-  append(entry: AuditLogEntry): Promise<void> {
-    this.entries.push(entry);
-    return Promise.resolve();
-  }
-
-  listByRecordId(recordId: string): Promise<AuditLogEntry[]> {
-    return Promise.resolve(
-      this.entries
-        .filter((entry) => entry.recordId === recordId)
-        .sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
-    );
-  }
-
-  seed(entry: AuditLogEntry): void {
-    this.entries.push(entry);
-  }
-}
 
 function fakeVerifyCaller(email: string): VerifyCaller {
   return () => Promise.resolve({ email });

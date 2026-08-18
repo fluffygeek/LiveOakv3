@@ -3,7 +3,7 @@ import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import type { User } from "@supabase/supabase-js";
 import type { Role } from "@liveoakv3/shared";
-import { supabase } from "../supabase";
+import { invokeFunction, supabase } from "../supabase";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -58,13 +58,8 @@ export function useAuth() {
         // resolveMyAccess (supabase/functions/resolveMyAccess) resolves the caller's
         // roles server-side — same isAllowedWorkspaceDomain + allowlist enforcement the
         // Firebase callable of the same name provided, ported unchanged.
-        const { data, error } = await supabase.functions.invoke<ResolvedAccess>(
-          "resolveMyAccess",
-        );
-        if (error || !data) {
-          throw error ?? new Error("resolveMyAccess returned no data");
-        }
-        setState({ status: "signedIn", user, access: data });
+        const access = await invokeFunction<ResolvedAccess>("resolveMyAccess");
+        setState({ status: "signedIn", user, access });
       } catch {
         setState({ status: "denied" });
       }
