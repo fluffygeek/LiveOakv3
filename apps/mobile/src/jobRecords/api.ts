@@ -1,5 +1,6 @@
 import type { JobRecord } from "@liveoakv3/shared";
 import { supabase } from "../supabase";
+import { uploadJobRecordPhotos } from "./photoUpload";
 import type { JobRecordSubmission } from "./storage";
 
 /**
@@ -8,12 +9,22 @@ import type { JobRecordSubmission } from "./storage";
  * onto the Edge-Function transport (supabase/functions/createJobRecord). Unwraps the
  * `{ data, error }` result the same way apps/mobile/src/auth/useAuth.ts and
  * apps/web/src/admin/ManageUsersScreen.tsx already do for supabase.functions.invoke calls.
+ *
+ * Uploads `submission.photoUrls` (still local device URIs at this point — see storage.ts's
+ * JobRecordSubmission.photoUrls) to Supabase Storage (ticket #29, photoUpload.ts) first,
+ * swapping in the real storage-object paths createJobRecord then persists. Doing the upload
+ * here, immediately before createJobRecord, rather than earlier at draft/enqueue time means a
+ * submission queued offline (storage.ts's enqueueSubmission) still holds its original local
+ * URIs and simply re-attempts the whole upload-then-submit sequence from scratch on every
+ * sync retry (sync.ts) — no separate "which photos already uploaded" state to track.
  */
 export async function submitJobRecord(
   submission: JobRecordSubmission,
 ): Promise<JobRecord> {
+  const photoUrls = await uploadJobRecordPhotos(submission.photoUrls);
+
   const { data, error } = await supabase.functions.invoke<JobRecord>("createJobRecord", {
-    body: submission,
+    body: { ...submission, photoUrls },
   });
   if (error) {
     throw error;

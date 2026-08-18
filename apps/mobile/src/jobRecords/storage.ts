@@ -22,8 +22,11 @@ export interface JobRecordSubmission {
   footage: number;
   notes: string;
   isNewBuild: boolean;
-  // NOTE: these are local device URIs, not yet uploaded anywhere durable —
-  // real Cloud Storage upload wiring is a follow-up (see SubmitJobScreen.tsx).
+  // NOTE: these are local device URIs — submitJobRecord (api.ts) uploads them to Supabase
+  // Storage via photoUpload.ts immediately before calling createJobRecord, swapping in the
+  // real storage-object paths that actually get persisted (ticket #29). Kept as local URIs
+  // here (rather than uploading at draft/enqueue time) so a submission queued offline below
+  // re-attempts the upload from scratch on every sync retry — see api.ts's submitJobRecord.
   photoUrls: string[];
   /** Device-local time captured at the moment the Technician tapped Submit. */
   submittedAt: string;

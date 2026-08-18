@@ -90,8 +90,8 @@ export function SubmitJobScreen() {
       footage: footageValue,
       notes: draft.notes,
       isNewBuild: draft.isNewBuild,
-      // Local device URIs for now — see the note in storage.ts about
-      // Cloud Storage upload being a follow-up, not yet wired here.
+      // Local device URIs — submitJobRecord (api.ts) uploads them to Supabase Storage
+      // before the Job Record is created; see the note in storage.ts.
       photoUrls: draft.photoUris,
       submittedAt: new Date().toISOString(),
     };
