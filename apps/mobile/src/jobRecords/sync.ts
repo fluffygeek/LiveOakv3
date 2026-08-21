@@ -1,5 +1,5 @@
 import { submitJobRecord } from "./api";
-import { getQueue, removeFromQueue } from "./storage";
+import { getQueue, removeFromQueue, updateQueuedSubmissionPhotos } from "./storage";
 
 let inFlight: Promise<void> | null = null;
 
@@ -7,7 +7,14 @@ async function runSync(): Promise<void> {
   const queue = await getQueue();
   for (const { localId, ...submission } of queue) {
     try {
-      await submitJobRecord(submission);
+      // Persist each photo's real storage path back into this queued submission as soon as
+      // it uploads, not just once the whole submission succeeds — so a crash or another
+      // dropped connection partway through this retry doesn't lose track of what already
+      // made it to Storage and re-upload it under a fresh UUID next time (ticket #29 code
+      // review finding).
+      await submitJobRecord(submission, (photoUrls) =>
+        updateQueuedSubmissionPhotos(localId, photoUrls),
+      );
       await removeFromQueue(localId);
     } catch {
       // Still offline, or a transient failure — retried on the next trigger.
