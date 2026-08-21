@@ -59,9 +59,10 @@ Functions, not Firebase:
   and the mobile equivalent only expose a Google button, so there's currently no
   UI-driven way to sign in locally at all (email/password auth is enabled server-side —
   `supabase/config.toml`'s `[auth.email]` — but no UI is wired to it).
-- **Photos upload for real, but nobody can view them yet.** `createJobRecord` (#21) and
-  the mobile app's `photoUpload.ts` (#29) upload each photo to Supabase Storage before
-  the Job Record is created — this isn't a stub. The gap is on the review side:
+- **Photos upload for real, but nobody can view them yet.** The mobile app's
+  `photoUpload.ts` (#29) uploads each photo to Supabase Storage before calling
+  `createJobRecord` (#21), which just persists the resulting storage-object paths — this
+  isn't a stub. The gap is on the review side:
   `apps/web/src/admin/JobRecordReviewScreen.tsx` only renders `record.photoUrls.length`
   ("3 attached"), with no image viewer wired up yet.
 - **Address verification and the nightly discrepancy email are intentional stubs, same

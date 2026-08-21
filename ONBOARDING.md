@@ -187,16 +187,19 @@ npm run build --workspace=packages/shared
 
 # Terminal 2: start the local Supabase stack (Postgres, auth, backend functions, all in Docker)
 npx supabase start
-
-# Terminal 3: start the website
-npm run dev --workspace=apps/web
 ```
 
-`apps/web/.env` also needs a `VITE_SUPABASE_ANON_KEY` value, read from `npx supabase
-status` after `supabase start` finishes — unlike the old Firebase setup, there's no safe
-placeholder default, so the app won't be able to talk to auth/data without it. Full
+Before starting the website, `apps/web/.env` needs a `VITE_SUPABASE_ANON_KEY` value, read
+from `npx supabase status` (now that `supabase start` has finished) — unlike the old
+Firebase setup, there's no safe placeholder default, so the app won't be able to talk to
+auth/data without it, and Vite only reads `.env` at startup, not while running. Full
 step-by-step details (including the equivalent env var for the mobile app) are in
 [`docs/deploy-demo.md`](./docs/deploy-demo.md).
+
+```bash
+# Terminal 3: start the website, once VITE_SUPABASE_ANON_KEY is set
+npm run dev --workspace=apps/web
+```
 
 Then open **http://localhost:5173** in your browser to see the web app.
 
