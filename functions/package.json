@@ -12,9 +12,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@liveoakv3/shared": "*",
-    "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.0.1"
+    "@liveoakv3/shared": "*"
   },
   "devDependencies": {
     "@types/node": "^20.16.11",
