@@ -12,9 +12,10 @@ deploy`, Vault/secrets seeding, Google OAuth config, and web/mobile env wiring a
 real project. This doc still only covers local dev.
 
 **Read [Known gaps](#known-gaps-worth-disclosing-before-the-demo) before you start** —
-the migration from Firebase to Supabase is in progress and lands incrementally. As of
-this writing, a couple of pieces (Google sign-in, the weekly-list screen) aren't wired up
-locally yet either. None of that is specific to this doc; it reflects where `main`
+the Firebase-to-Supabase migration itself (#14) is fully landed on `main`, but a few
+product features were stubbed out on purpose before the migration even started and still
+are (address verification, the discrepancy email), and Google sign-in isn't wired up for
+local dev yet either. None of that is specific to this doc; it reflects where `main`
 actually is right now.
 
 ```mermaid
@@ -43,8 +44,10 @@ flowchart TD
 
 ## Known gaps, worth disclosing before the demo
 
-These are real, current states of `main` as of this writing (2026-08-14) — not something
-this guide works around:
+These are real, current states of `main` as of this writing (2026-08-21) — not something
+this guide works around. All of them are product-feature gaps, not migration gaps — the
+Supabase port itself (#16-#31, #42) is complete and everything below runs on Postgres/Edge
+Functions, not Firebase:
 
 - **Google sign-in isn't wired for local dev.** `supabase/config.toml`'s
   `[auth.external.google]` block is `enabled = false`, with a comment noting no real
@@ -56,21 +59,20 @@ this guide works around:
   and the mobile equivalent only expose a Google button, so there's currently no
   UI-driven way to sign in locally at all (email/password auth is enabled server-side —
   `supabase/config.toml`'s `[auth.email]` — but no UI is wired to it).
-- **The mobile weekly-list screen still calls the old Firebase callable.**
-  `apps/mobile/src/jobRecords/api.ts`'s `listMyWeeklyJobRecordsFn` still uses
-  `httpsCallable` from `firebase/functions` — only `createJobRecord` (ticket #21) has
-  been ported onto `supabase.functions.invoke()` so far. Submitting a job record from
-  the mobile app is otherwise ported and, per #21, calls the real `createJobRecord` Edge
-  Function, which now works end-to-end locally (#42, fixed).
-- **Photos never leave the phone.** Unchanged from before —
-  `apps/mobile/src/jobRecords/storage.ts` still stores the camera roll's local `file://`
-  URI directly; there's no Storage upload wired up yet (tracked as #29, open).
-- **Address verification, the nightly discrepancy email, and the nightly state export
-  are still Firebase/Firestore-only** — `functions/src/jobRecords`'s
-  `NotConfiguredAddressVerifier`, and `functions/src/notifications`'s
-  `NotConfiguredEmailSender` / `firestoreStateExportRepository.ts`, haven't been ported
-  onto the Supabase stack at all (tracked as #27 and #28, both open). This local-Supabase
-  demo path doesn't exercise them either way.
+- **Photos upload for real, but nobody can view them yet.** The mobile app's
+  `photoUpload.ts` (#29) uploads each photo to Supabase Storage before calling
+  `createJobRecord` (#21), which just persists the resulting storage-object paths — this
+  isn't a stub. The gap is on the review side:
+  `apps/web/src/admin/JobRecordReviewScreen.tsx` only renders `record.photoUrls.length`
+  ("3 attached"), with no image viewer wired up yet.
+- **Address verification and the nightly discrepancy email are intentional stubs, same
+  as before the migration** — `functions/src/jobRecords/notConfiguredAddressVerifier.ts`
+  and `functions/src/notifications/notConfiguredEmailSender.ts` are both still wired in
+  by the Edge Functions that call them (`supabase/functions/createJobRecord`,
+  `supabase/functions/nightlyDiscrepancyEmail`) — no address-verification or email vendor
+  has been chosen yet. This isn't a migration gap: the nightly state export
+  (`supabase/functions/nightlyStateExport`) and both scheduled jobs otherwise run for
+  real against Postgres via `pg_cron` (#17, #27, #28).
 
 ## Bootstrapping the first admin
 
@@ -141,6 +143,8 @@ from the Manage Users screen from there, same as the Firebase-era flow.
 
 ```bash
 # from the repo root:
+npm run build --workspace=packages/shared   # apps/web imports its compiled dist/ output,
+                                             # which isn't committed to git
 npx supabase start
 
 npm run dev --workspace=apps/web   # vite dev server, defaults to localhost:5173
@@ -175,9 +179,13 @@ sequenceDiagram
 
 ## Mobile app
 
-Same idea, `EXPO_PUBLIC_*` names this time (`apps/mobile/src/supabase.ts`):
+Same idea, `EXPO_PUBLIC_*` names this time (`apps/mobile/src/supabase.ts`). `apps/mobile`
+imports `@liveoakv3/shared` too, so it needs the same build step as the web app if you
+haven't already run it in this session:
 
 ```bash
+npm run build --workspace=packages/shared
+
 npx expo start --clear
 ```
 
