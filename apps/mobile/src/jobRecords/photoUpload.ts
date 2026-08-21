@@ -1,4 +1,4 @@
-import { supabase } from "../supabase";
+import { invokeFunction } from "../supabase";
 
 // Local device URIs (what expo-image-picker's camera capture returns, see
 // SubmitJobScreen.tsx's pickPhoto) always use the file:// scheme. A Supabase Storage object
@@ -97,17 +97,11 @@ export async function uploadJobRecordPhoto(uri: string): Promise<string> {
   // matches expo-image-picker's camera capture default.
   const contentType = blob.type || inferContentTypeFromUri(uri) || "image/jpeg";
 
-  const { data, error } = await supabase.functions.invoke<{ path: string }>(
-    "uploadJobRecordPhoto",
-    { body: { contentType, base64Data } },
-  );
-  if (error) {
-    throw error;
-  }
-  if (!data) {
-    throw new Error("uploadJobRecordPhoto returned no data");
-  }
-  return data.path;
+  const { path } = await invokeFunction<{ path: string }>("uploadJobRecordPhoto", {
+    contentType,
+    base64Data,
+  });
+  return path;
 }
 
 /**

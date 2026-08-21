@@ -214,15 +214,25 @@ export async function createJobRecord(
     },
   );
 
-  await deps.auditLogRepo.append({
-    id: generateId(),
-    recordId: record.recordId,
-    actorEmail: callerEmail,
-    action: "created",
-    timestamp: createdAt,
-    before: null,
-    after: record as unknown as Record<string, unknown>,
-  });
+  // Best-effort: the Job Record row above is already durably committed, so a failure here
+  // must never propagate as an error from an operation that actually already succeeded --
+  // that would invite the mobile client to retry an infallible-looking 500 and create a
+  // duplicate Job Record for the same address/window. Unlike the old NoopAuditLogRepository
+  // this replaced, PostgresAuditLogRepository.append can genuinely throw (e.g. a transient
+  // Postgres error), so log-and-swallow rather than let it undo an already-successful create.
+  try {
+    await deps.auditLogRepo.append({
+      id: generateId(),
+      recordId: record.recordId,
+      actorEmail: callerEmail,
+      action: "created",
+      timestamp: createdAt,
+      before: null,
+      after: record as unknown as Record<string, unknown>,
+    });
+  } catch (error) {
+    console.error(`Failed to write 'created' audit log entry for ${record.recordId}:`, error);
+  }
 
   return record;
 }

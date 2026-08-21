@@ -1,14 +1,13 @@
 import type { JobRecord } from "@liveoakv3/shared";
-import { supabase } from "../supabase";
+import { invokeFunction } from "../supabase";
 import { uploadJobRecordPhotos } from "./photoUpload";
 import type { JobRecordSubmission } from "./storage";
 
 /**
  * Submits a new Job Record via the createJobRecord Edge Function (ticket #21) — replaces the
  * old httpsCallable(functions, "createJobRecord") call now that createJobRecord is ported
- * onto the Edge-Function transport (supabase/functions/createJobRecord). Unwraps the
- * `{ data, error }` result the same way apps/mobile/src/auth/useAuth.ts and
- * apps/web/src/admin/ManageUsersScreen.tsx already do for supabase.functions.invoke calls.
+ * onto the Edge-Function transport (supabase/functions/createJobRecord). Unwraps the Edge
+ * Function response via `invokeFunction` (apps/mobile/src/supabase.ts).
  *
  * Uploads `submission.photoUrls` (still local device URIs at this point, unless a prior
  * attempt already uploaded some — see storage.ts's JobRecordSubmission.photoUrls) to Supabase
@@ -38,16 +37,10 @@ export async function submitJobRecord(
   });
   submission.photoUrls = photoUrls;
 
-  const { data, error } = await supabase.functions.invoke<JobRecord>("createJobRecord", {
-    body: { ...submission, photoUrls },
+  return invokeFunction<JobRecord, JobRecordSubmission>("createJobRecord", {
+    ...submission,
+    photoUrls,
   });
-  if (error) {
-    throw error;
-  }
-  if (!data) {
-    throw new Error("createJobRecord returned no data");
-  }
-  return data;
 }
 
 export interface WeeklyList {
@@ -61,18 +54,8 @@ export interface WeeklyList {
  * listMyWeeklyJobRecords Edge Function (ticket #26) — replaces the old
  * httpsCallable(functions, "listMyWeeklyJobRecords") call now that listMyWeeklyJobRecords is
  * ported onto the Edge-Function transport (supabase/functions/listMyWeeklyJobRecords). Unwraps
- * the `{ data, error }` result the same way `submitJobRecord` above does.
+ * the Edge Function response the same way `submitJobRecord` above does.
  */
 export async function getMyWeeklyJobRecords(weekOffset: number): Promise<WeeklyList> {
-  const { data, error } = await supabase.functions.invoke<WeeklyList>(
-    "listMyWeeklyJobRecords",
-    { body: { weekOffset } },
-  );
-  if (error) {
-    throw error;
-  }
-  if (!data) {
-    throw new Error("listMyWeeklyJobRecords returned no data");
-  }
-  return data;
+  return invokeFunction<WeeklyList>("listMyWeeklyJobRecords", { weekOffset });
 }

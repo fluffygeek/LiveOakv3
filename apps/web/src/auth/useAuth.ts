@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { Role } from "@liveoakv3/shared";
-import { supabase, workspaceDomain } from "../supabase";
+import { invokeFunction, supabase, workspaceDomain } from "../supabase";
 
 export interface ResolvedAccess {
   email: string;
@@ -30,13 +30,8 @@ export function useAuth() {
         // resolveMyAccess (supabase/functions/resolveMyAccess) resolves the caller's
         // roles server-side — same isAllowedWorkspaceDomain + allowlist enforcement the
         // Firebase callable of the same name provided, ported unchanged.
-        const { data, error } = await supabase.functions.invoke<ResolvedAccess>(
-          "resolveMyAccess",
-        );
-        if (error || !data) {
-          throw error ?? new Error("resolveMyAccess returned no data");
-        }
-        setState({ status: "signedIn", user, access: data });
+        const access = await invokeFunction<ResolvedAccess>("resolveMyAccess");
+        setState({ status: "signedIn", user, access });
       } catch {
         setState({ status: "denied" });
       }

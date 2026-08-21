@@ -8,32 +8,32 @@ import {
   type Role,
 } from "@liveoakv3/shared";
 import { functions } from "../firebase";
+import { invokeFunction } from "../supabase";
 
 type EditableJobRecordPatch = Partial<
   Pick<JobRecord, "jobId" | "address" | "workCode" | "footage" | "notes">
 >;
 
-const listJobRecordsFn = httpsCallable<void, JobRecord[]>(functions, "listJobRecords");
-const getJobRecordFn = httpsCallable<{ recordId: string }, JobRecord>(
-  functions,
-  "getJobRecord",
-);
-const listJobRecordAuditLogFn = httpsCallable<{ recordId: string }, AuditLogEntry[]>(
-  functions,
-  "listJobRecordAuditLog",
-);
-const editJobRecordFn = httpsCallable<
-  { recordId: string } & EditableJobRecordPatch,
-  JobRecord
->(functions, "editJobRecord");
+// Ported to Supabase Edge Functions (ticket #23): listJobRecords/getJobRecord already existed
+// as Edge Functions from an earlier ticket but this screen still called them via
+// httpsCallable until now; editJobRecord/setPicturesDownloaded/listJobRecordAuditLog are new
+// Edge Functions built by #23 itself.
+const listJobRecordsFn = () => invokeFunction<JobRecord[]>("listJobRecords");
+const getJobRecordFn = (body: { recordId: string }) =>
+  invokeFunction<JobRecord>("getJobRecord", body);
+const listJobRecordAuditLogFn = (body: { recordId: string }) =>
+  invokeFunction<AuditLogEntry[]>("listJobRecordAuditLog", body);
+const editJobRecordFn = (body: { recordId: string } & EditableJobRecordPatch) =>
+  invokeFunction<JobRecord>("editJobRecord", body);
+const setPicturesDownloadedFn = (body: { recordId: string; value: boolean }) =>
+  invokeFunction<JobRecord>("setPicturesDownloaded", body);
+
+// Not yet ported -- no Edge Functions exist for these (setDiscrepancy/setClosed are #24's
+// scope, overrideDuplicatePrimary/unlinkDuplicate are #25's), so they stay on httpsCallable.
 const setDiscrepancyFn = httpsCallable<
   { recordId: string; active: boolean; reason: string | null },
   JobRecord
 >(functions, "setDiscrepancy");
-const setPicturesDownloadedFn = httpsCallable<
-  { recordId: string; value: boolean },
-  JobRecord
->(functions, "setPicturesDownloaded");
 const setClosedFn = httpsCallable<{ recordId: string; value: boolean }, JobRecord>(
   functions,
   "setClosed",
@@ -60,7 +60,7 @@ export function JobRecordReviewScreen({ roles }: { roles: Role[] }) {
     setError(null);
     try {
       const result = await listJobRecordsFn();
-      setRecords(result.data);
+      setRecords(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load Job Records");
     } finally {
@@ -152,8 +152,8 @@ function JobRecordDetail({
         getJobRecordFn({ recordId }),
         listJobRecordAuditLogFn({ recordId }),
       ]);
-      setRecord(recordResult.data);
-      setAuditLog(auditResult.data);
+      setRecord(recordResult);
+      setAuditLog(auditResult);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load Job Record");
