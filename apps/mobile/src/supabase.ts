@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, FunctionsHttpError } from "@supabase/supabase-js";
 
 // Local dev default matches supabase/config.toml's [api] port (54321). The real project
 // URL is supplied via EXPO_PUBLIC_SUPABASE_URL once a deployed Supabase project exists
@@ -29,3 +29,55 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // resolveMyAccess Edge Function the exact same way it's called from today's Firebase
 // callable.
 export const workspaceDomain = process.env.EXPO_PUBLIC_WORKSPACE_DOMAIN ?? "example.com";
+
+/**
+ * Invokes a Supabase Edge Function and unwraps its response into a resolved value or a
+ * thrown `Error` -- the mobile counterpart of apps/web/src/supabase.ts's `invokeFunction`,
+ * fixing the same pre-existing bug apps/mobile/src/jobRecords/api.ts and
+ * apps/mobile/src/auth/useAuth.ts had been carrying: every `defineEdgeHandler`-built Edge
+ * Function (supabase/functions/_shared/callableHandler.ts) responds `{ data: result }` on
+ * success, but `@supabase/functions-js`'s `FunctionsClient.invoke()` parses the *entire*
+ * response body as `data` -- so `supabase.functions.invoke(name)` actually resolves
+ * `data: { data: result }`, not `data: result`, unless unwrapped here. This also restores
+ * the real server error message (`{ error: { code, message } }`, written by
+ * callableHandler.ts's `toErrorResponse`) instead of `FunctionsHttpError`'s hardcoded
+ * generic one.
+ */
+export async function invokeFunction<TResult, TBody extends object = Record<string, unknown>>(
+  name: string,
+  body?: TBody,
+): Promise<TResult> {
+  // Cast at the boundary: callers pass concrete request-payload interfaces (e.g.
+  // JobRecordSubmission), which -- unlike inline object-literal types -- TypeScript
+  // doesn't treat as assignable to an indexed type without an explicit cast, even though
+  // they're plain JSON-serializable objects at runtime.
+  const { data, error } = await supabase.functions.invoke<{ data: TResult }>(name, {
+    body: body as Record<string, unknown> | undefined,
+  });
+  if (error) {
+    throw await resolveInvokeError(name, error);
+  }
+  if (data === null || data === undefined) {
+    throw new Error(`${name} returned no data`);
+  }
+  return data.data;
+}
+
+async function resolveInvokeError(name: string, error: unknown): Promise<Error> {
+  if (error instanceof FunctionsHttpError) {
+    try {
+      const body: unknown = await error.context.json();
+      const message =
+        body && typeof body === "object" && "error" in body
+          ? (body as { error?: { message?: unknown } }).error?.message
+          : undefined;
+      if (typeof message === "string" && message.length > 0) {
+        return new Error(message);
+      }
+    } catch {
+      // Reading the real error body failed (network hiccup mid-error, non-JSON body,
+      // etc.) -- fall through to the generic error below rather than losing the failure.
+    }
+  }
+  return error instanceof Error ? error : new Error(`${name} failed`);
+}

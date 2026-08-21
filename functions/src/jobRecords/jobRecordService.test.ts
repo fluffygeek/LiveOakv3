@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { noDuplicateLink, type JobRecord } from "@liveoakv3/shared";
 import { ForbiddenError, InvalidArgumentError } from "../access/errors.ts";
+import type { AuditLogRepository } from "./auditLogRepository.ts";
 import { FakeAddressVerifier } from "./fakeAddressVerifier.ts";
 import { InMemoryAuditLogRepository } from "./inMemoryAuditLogRepository.ts";
 import { InMemoryJobRecordRepository } from "./inMemoryJobRecordRepository.ts";
@@ -141,6 +142,28 @@ describe("createJobRecord", () => {
       action: "created",
       before: null,
     });
+  });
+
+  it("still creates the Job Record when the audit log write throws (the record insert already durably succeeded, so this must be non-fatal)", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failingAuditLogRepo: AuditLogRepository = {
+      append: () => Promise.reject(new Error("transient postgres error")),
+      listByRecordId: () => Promise.resolve([]),
+    };
+
+    const record = await createJobRecord(
+      "tech@example.com",
+      ["technician"],
+      validInput(),
+      { ...deps(), auditLogRepo: failingAuditLogRepo },
+    );
+
+    expect(record.recordId).toBe("record-1");
+    await expect(jobRecordRepo.getById("record-1")).resolves.toMatchObject({
+      jobId: "DISPATCH-123",
+    });
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
   });
 
   it("does not flag the timestamp as suspect when submittedAt and createdAt are close", async () => {

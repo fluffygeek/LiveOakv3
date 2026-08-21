@@ -5,10 +5,6 @@ import { createHandler } from "./handler.ts";
 
 // Production entrypoint — deployed as-is, never imported by tests (see handler.ts for the
 // testable logic).
-//
-// Uses PostgresAuditLogRepository (not NoopAuditLogRepository) as of ticket #23, which is
-// what that placeholder's own doc comment (supabase/functions/_shared/
-// noopAuditLogRepository.ts) says replaces it once the audit_log migration lands.
 Deno.serve(
   createHandler(
     new PostgresUserRepository(serviceRoleClient()),
