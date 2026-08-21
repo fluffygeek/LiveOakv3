@@ -78,25 +78,38 @@ LiveOakv3/
 │   └── mobile/     ← The phone app field workers use (built with Expo/React Native)
 ├── packages/
 │   └── shared/     ← Code and rules shared by everything above (e.g. what a "role" is)
-├── functions/      ← The backend — runs in the cloud, handles data and nightly jobs
+├── functions/      ← Backend business logic (Job Records, users, notifications) — used
+│                      directly, unchanged, by the Edge Functions in supabase/functions/
+├── supabase/       ← The backend that actually runs in the cloud: Postgres migrations
+│                      (supabase/migrations/), Edge Functions (supabase/functions/), and
+│                      local-stack config (config.toml)
 ├── docs/
 │   ├── adr/        ← Short write-ups explaining big decisions and why we made them
 │   └── agents/     ← Notes for AI coding assistants working in this repo
-├── CONTEXT.md      ← The glossary of words this project uses (see section 3)
-└── firebase.json   ← Settings for Firebase, the cloud service this app runs on
+└── CONTEXT.md      ← The glossary of words this project uses (see section 3)
 ```
 
-**A simple way to think about it:** the phone app and website are the two "front doors." The `functions` folder is the "back office" that both front doors talk to. The `shared` package is a toolbox both front doors and the back office use, so they don't repeat themselves.
+You'll also see `firebase.json`, `.firebaserc`, `firestore.rules`, and
+`firestore.indexes.json` at the root. Those are leftovers from the app's original Firebase
+backend — nothing in the running app uses them anymore now that everything is on Supabase,
+and they're slated for removal. Don't take them as a sign of what the backend runs on
+today.
+
+**A simple way to think about it:** the phone app and website are the two "front doors."
+`supabase/functions/` (the Edge Functions) is the "back office" that both front doors talk
+to, and it leans on the business logic in `functions/src/` — imported directly, unchanged —
+to actually do the work. The `shared` package is a toolbox both front doors and the back
+office use, so they don't repeat themselves.
 
 ```mermaid
 flowchart TD
     Mobile["apps/mobile\nPhone app — Technician"]
     Web["apps/web\nWebsite — Payroll & Application Administrator"]
     Shared["packages/shared\nShared types & rules"]
-    Functions["functions\nBackend (Cloud Functions)"]
-    Auth["Firebase Auth\nsign-in"]
-    DB["Firestore\ndatabase"]
-    Nightly["Nightly scheduled jobs\nstate export + discrepancy email"]
+    Functions["supabase/functions\nBackend (Supabase Edge Functions)"]
+    Auth["Supabase Auth\nsign-in"]
+    DB["Postgres\ndatabase"]
+    Nightly["Nightly scheduled jobs (pg_cron)\nstate export + discrepancy email"]
 
     Mobile -- "submit Job Records" --> Functions
     Web -- "review / edit Job Records" --> Functions
@@ -109,7 +122,9 @@ flowchart TD
     Shared -. used by .-> Functions
 ```
 
-The phone app and website never talk to the database directly — everything goes through `functions`, which checks who you are and what role you have before touching any data.
+The phone app and website never talk to the database directly — everything goes through
+the Supabase Edge Functions in `supabase/functions/`, which check who you are and what role
+you have before touching any data.
 
 ---
 
@@ -120,10 +135,13 @@ You don't need to be an expert in these to get started, but here's what's involv
 - **TypeScript** — the programming language used everywhere in this project. It's JavaScript with extra safety checks.
 - **React** — powers the web app.
 - **Expo / React Native** — powers the phone app.
-- **Firebase** — the cloud platform this app runs on. It handles:
+- **Supabase** — the cloud platform this app runs on. It handles:
   - **Auth** — signing people in with a company Google account
-  - **Firestore** — the database that stores Job Records and users
-  - **Cloud Functions** — backend code, plus jobs that run automatically every night
+  - **Postgres** — the database that stores Job Records and users (access is locked down
+    with row-level security, so the database itself refuses queries from anyone who
+    isn't going through the backend)
+  - **Edge Functions** — backend code (small TypeScript/Deno functions), plus jobs that
+    run automatically every night via `pg_cron`
 - **Vite** — the tool that runs and builds the web app.
 - **Vitest** — the tool that runs automated tests.
 
@@ -137,7 +155,7 @@ If you want to know *why* we picked these tools, read the short files in `docs/a
 
 1. **Node.js, version 20** — this is the engine that runs JavaScript/TypeScript outside a browser. Download it from [nodejs.org](https://nodejs.org) if you don't have it.
 2. **Git** — to download (clone) the project and save your changes.
-3. **Java** — only needed if you want to run the app fully offline using Firebase's emulator (a fake, local version of the cloud). Most people will want this.
+3. **Docker** — only needed if you want to run the app fully offline using the Supabase CLI's local stack (a set of Docker containers standing in for the real cloud: database, auth, backend functions). Most people will want this.
 4. **The Expo Go app** on your phone, or a phone simulator on your computer — only needed if you want to test the mobile app.
 
 ### Steps
@@ -157,21 +175,28 @@ If you want to know *why* we picked these tools, read the short files in `docs/a
 
 ## 7. Running the App on Your Computer
 
-To try out the full app without touching any real, live data, use Firebase's **emulator** — a safe, local stand-in for the real cloud.
+To try out the full app without touching any real, live data, use the **Supabase CLI's
+local stack** — a safe, local stand-in for the real cloud, running as Docker containers.
 
 Open a few terminal windows and run these, in order:
 
 ```bash
-# Terminal 1: build the shared toolbox and the backend
+# Terminal 1: build the shared toolbox (apps/web and apps/mobile both import its
+# compiled output, so this has to happen before you run either app)
 npm run build --workspace=packages/shared
-npm run build --workspace=functions
 
-# Terminal 2: start the fake local cloud (auth, database, backend functions)
-npx firebase-tools emulators:start --only auth,firestore,functions
+# Terminal 2: start the local Supabase stack (Postgres, auth, backend functions, all in Docker)
+npx supabase start
 
 # Terminal 3: start the website
 npm run dev --workspace=apps/web
 ```
+
+`apps/web/.env` also needs a `VITE_SUPABASE_ANON_KEY` value, read from `npx supabase
+status` after `supabase start` finishes — unlike the old Firebase setup, there's no safe
+placeholder default, so the app won't be able to talk to auth/data without it. Full
+step-by-step details (including the equivalent env var for the mobile app) are in
+[`docs/deploy-demo.md`](./docs/deploy-demo.md).
 
 Then open **http://localhost:5173** in your browser to see the web app.
 
@@ -195,7 +220,15 @@ npm run test        # runs all the automated tests
 npm run build        # makes sure everything actually compiles
 ```
 
-Each of these runs across every part of the project at once (web, mobile, backend, shared).
+Each of these runs across every part of the project at once (web, mobile, backend, shared) —
+except the Edge Functions in `supabase/functions/`, which are Deno code, not part of the
+npm workspaces above. Those have their own commands, and need the [Deno
+CLI](https://deno.com) installed:
+
+```bash
+npm run typecheck:edge-functions
+npm run test:edge-functions
+```
 
 ---
 
@@ -203,7 +236,7 @@ Each of these runs across every part of the project at once (web, mobile, backen
 
 This project is still being built. A few pieces are stubbed out on purpose — they don't crash, they just don't do the real thing yet:
 
-- **Photos aren't uploaded anywhere.** They stay on the phone that took them. Office staff can't view them yet.
+- **Photos upload, but office staff can't actually view them yet.** Submitting a Job Record from the phone app uploads its photos to Supabase Storage for real — but the web app's review screen only shows how many photos are attached, not the photos themselves.
 - **Address checking always says "not verified."** The real address-checking service isn't hooked up yet.
 - **The nightly "something's wrong" email doesn't actually send.** The code that would send it runs, but nothing goes out.
 
@@ -229,7 +262,8 @@ Knowing this will save you time — if you see one of these while testing, it's 
 | See how work items are tracked | [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md) |
 | See the phone app's code | [`apps/mobile/src/`](./apps/mobile/src/) |
 | See the website's code | [`apps/web/src/`](./apps/web/src/) |
-| See the backend code | [`functions/src/`](./functions/src/) |
+| See the Edge Functions (what actually runs in the cloud) | [`supabase/functions/`](./supabase/functions/) |
+| See the backend business logic those functions call into | [`functions/src/`](./functions/src/) |
 | See code shared everywhere | [`packages/shared/src/`](./packages/shared/src/) |
 
 Welcome aboard — if something in this guide is confusing or out of date, that's worth fixing. Open an issue or update this file.
