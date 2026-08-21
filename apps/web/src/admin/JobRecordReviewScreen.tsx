@@ -17,7 +17,7 @@ type EditableJobRecordPatch = Partial<
 // Ported to Supabase Edge Functions (ticket #23): listJobRecords/getJobRecord already existed
 // as Edge Functions from an earlier ticket but this screen still called them via
 // httpsCallable until now; editJobRecord/setPicturesDownloaded/listJobRecordAuditLog are new
-// Edge Functions built by #23 itself.
+// Edge Functions built by #23 itself. overrideDuplicatePrimary/unlinkDuplicate are #25's.
 const listJobRecordsFn = () => invokeFunction<JobRecord[]>("listJobRecords");
 const getJobRecordFn = (body: { recordId: string }) =>
   invokeFunction<JobRecord>("getJobRecord", body);
@@ -27,9 +27,13 @@ const editJobRecordFn = (body: { recordId: string } & EditableJobRecordPatch) =>
   invokeFunction<JobRecord>("editJobRecord", body);
 const setPicturesDownloadedFn = (body: { recordId: string; value: boolean }) =>
   invokeFunction<JobRecord>("setPicturesDownloaded", body);
+const overrideDuplicatePrimaryFn = (body: { recordId: string }) =>
+  invokeFunction<JobRecord[]>("overrideDuplicatePrimary", body);
+const unlinkDuplicateFn = (body: { recordId: string; otherRecordId: string }) =>
+  invokeFunction<{ record: JobRecord; other: JobRecord }>("unlinkDuplicate", body);
 
-// Not yet ported -- no Edge Functions exist for these (setDiscrepancy/setClosed are #24's
-// scope, overrideDuplicatePrimary/unlinkDuplicate are #25's), so they stay on httpsCallable.
+// Not yet ported -- no Edge Function exists for these (setDiscrepancy/setClosed are #24's
+// scope), so they stay on httpsCallable.
 const setDiscrepancyFn = httpsCallable<
   { recordId: string; active: boolean; reason: string | null },
   JobRecord
@@ -38,14 +42,6 @@ const setClosedFn = httpsCallable<{ recordId: string; value: boolean }, JobRecor
   functions,
   "setClosed",
 );
-const overrideDuplicatePrimaryFn = httpsCallable<{ recordId: string }, JobRecord[]>(
-  functions,
-  "overrideDuplicatePrimary",
-);
-const unlinkDuplicateFn = httpsCallable<
-  { recordId: string; otherRecordId: string },
-  { record: JobRecord; other: JobRecord }
->(functions, "unlinkDuplicate");
 
 export function JobRecordReviewScreen({ roles }: { roles: Role[] }) {
   const isApplicationAdministrator = roles.includes("applicationAdministrator");
