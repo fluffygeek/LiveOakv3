@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { httpsCallable } from "firebase/functions";
 import {
   DISCREPANCY_REASONS,
   WORK_CODES,
@@ -7,7 +6,6 @@ import {
   type JobRecord,
   type Role,
 } from "@liveoakv3/shared";
-import { functions } from "../firebase";
 import { invokeFunction } from "../supabase";
 
 type EditableJobRecordPatch = Partial<
@@ -17,7 +15,9 @@ type EditableJobRecordPatch = Partial<
 // Ported to Supabase Edge Functions (ticket #23): listJobRecords/getJobRecord already existed
 // as Edge Functions from an earlier ticket but this screen still called them via
 // httpsCallable until now; editJobRecord/setPicturesDownloaded/listJobRecordAuditLog are new
-// Edge Functions built by #23 itself. overrideDuplicatePrimary/unlinkDuplicate are #25's.
+// Edge Functions built by #23 itself. setDiscrepancy/setClosed ported by ticket #24.
+// overrideDuplicatePrimary/unlinkDuplicate ported by ticket #25 -- every review call site is
+// now on the Edge-Function transport, no httpsCallable left in this screen.
 const listJobRecordsFn = () => invokeFunction<JobRecord[]>("listJobRecords");
 const getJobRecordFn = (body: { recordId: string }) =>
   invokeFunction<JobRecord>("getJobRecord", body);
@@ -31,17 +31,10 @@ const overrideDuplicatePrimaryFn = (body: { recordId: string }) =>
   invokeFunction<JobRecord[]>("overrideDuplicatePrimary", body);
 const unlinkDuplicateFn = (body: { recordId: string; otherRecordId: string }) =>
   invokeFunction<{ record: JobRecord; other: JobRecord }>("unlinkDuplicate", body);
-
-// Not yet ported -- no Edge Function exists for these (setDiscrepancy/setClosed are #24's
-// scope), so they stay on httpsCallable.
-const setDiscrepancyFn = httpsCallable<
-  { recordId: string; active: boolean; reason: string | null },
-  JobRecord
->(functions, "setDiscrepancy");
-const setClosedFn = httpsCallable<{ recordId: string; value: boolean }, JobRecord>(
-  functions,
-  "setClosed",
-);
+const setDiscrepancyFn = (body: { recordId: string; active: boolean; reason: string | null }) =>
+  invokeFunction<JobRecord>("setDiscrepancy", body);
+const setClosedFn = (body: { recordId: string; value: boolean }) =>
+  invokeFunction<JobRecord>("setClosed", body);
 
 export function JobRecordReviewScreen({ roles }: { roles: Role[] }) {
   const isApplicationAdministrator = roles.includes("applicationAdministrator");
