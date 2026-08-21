@@ -1,7 +1,7 @@
 {
   "tasks": {
-    "check": "deno check _shared/*.ts ping/index.ts scheduled-ping/index.ts resolveMyAccess/*.ts inviteUser/*.ts updateUserRoles/*.ts revokeUser/*.ts listUsers/*.ts setDistributionListMembership/*.ts createJobRecord/*.ts getJobRecord/*.ts listJobRecords/*.ts listMyWeeklyJobRecords/*.ts nightlyStateExport/*.ts editJobRecord/*.ts setPicturesDownloaded/*.ts listJobRecordAuditLog/*.ts uploadJobRecordPhoto/*.ts",
-    "test": "deno test --allow-env --allow-net _shared/ resolveMyAccess/ inviteUser/ updateUserRoles/ revokeUser/ listUsers/ setDistributionListMembership/ createJobRecord/ getJobRecord/ listJobRecords/ listMyWeeklyJobRecords/ nightlyStateExport/ editJobRecord/ setPicturesDownloaded/ listJobRecordAuditLog/ uploadJobRecordPhoto/"
+    "check": "deno check _shared/*.ts ping/index.ts scheduled-ping/index.ts resolveMyAccess/*.ts inviteUser/*.ts updateUserRoles/*.ts revokeUser/*.ts listUsers/*.ts setDistributionListMembership/*.ts createJobRecord/*.ts getJobRecord/*.ts listJobRecords/*.ts listMyWeeklyJobRecords/*.ts nightlyStateExport/*.ts editJobRecord/*.ts setPicturesDownloaded/*.ts listJobRecordAuditLog/*.ts uploadJobRecordPhoto/*.ts setDiscrepancy/*.ts setClosed/*.ts",
+    "test": "deno test --allow-env --allow-net _shared/ resolveMyAccess/ inviteUser/ updateUserRoles/ revokeUser/ listUsers/ setDistributionListMembership/ createJobRecord/ getJobRecord/ listJobRecords/ listMyWeeklyJobRecords/ nightlyStateExport/ editJobRecord/ setPicturesDownloaded/ listJobRecordAuditLog/ uploadJobRecordPhoto/ setDiscrepancy/ setClosed/"
   },
   "imports": {
     "@supabase/supabase-js": "jsr:@supabase/supabase-js@2",
